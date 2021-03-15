@@ -1,5 +1,6 @@
 import ocr.iflytek.WebOCR;
 import org.ansj.splitWord.analysis.DicAnalysis;
+import utils.DocumentExtractText;
 import utils.PDF2pngUtil;
 import utils.PDFExtractText;
 
@@ -17,7 +18,7 @@ public class KeyStatistics {
 
     public static void main(String[] args) {
         final KeyStatistics keyStatistics = new KeyStatistics();
-        keyStatistics.execute("D:\\data\\docShop\\participle_task\\test\\test");
+        keyStatistics.execute("D:\\data\\docShop\\participle_task\\311\\test");
     }
 
     public void execute(String path) {
@@ -32,6 +33,7 @@ public class KeyStatistics {
                     execute(file.getPath());
                 } else {
                     try {
+                        System.out.println("handling file: " + file.getName());
                         process(file.getPath());
                     } catch (Exception e) {
                         System.out.println("counting error, skip...");
@@ -43,7 +45,7 @@ public class KeyStatistics {
 
     public void process(String fileName) throws Exception {
         //1. pdf to String
-        String pdfContent = pdf2String(fileName);
+        String pdfContent = fileExtractString(fileName);
         //2. participle
         String parseResult = DicAnalysis.parse(pdfContent).toStringWithOutNature();
         //3. cout result of step 2 to a file named by pdf's name
@@ -52,31 +54,41 @@ public class KeyStatistics {
         flushStringTodisk(sortedParseResult, fileName + ".txt");
     }
 
-    private String pdf2String(String fileName) throws IOException {
-        boolean pdfIsPng = 2 << 5 < 100;
-        String result;
-        if (pdfIsPng) {
-            PDF2pngUtil.pdf2png(fileName);
-            StringBuilder partialResult = new StringBuilder();
-            File root = new File(fileName + "dir");
-            // 如果这个路径是文件夹
-            if (root.isDirectory()) {
-                // 获取路径下的所有文件
-                File[] files = root.listFiles();
-                assert files != null;
-                for (File file : files) {
-                    try {
-                        Thread.sleep(1000);
-//                        partialResult.append(WebOCR.execute(file.getPath()));
-                    } catch (Exception e) {
-                        System.out.println("counting error, skip...");
+    private String fileExtractString(String fileName) throws IOException {
+        String result = null;
+        if (fileName.contains(".doc")) {
+            result = DocumentExtractText.extractText(fileName);
+            System.out.println("fileExtractString: " + result);
+        } else if (fileName.contains(".pdf")) {
+            //step1 直接从pdf读文字
+            result = PDFExtractText.extractString(fileName);
+            if ("".equals(result)) {
+                //由图片组成的pdf， 先转图片
+                PDF2pngUtil.pdf2png(fileName);
+                StringBuilder partialResult = new StringBuilder();
+                File root = new File(fileName + "dir");
+                //遍历图片所在的路径，依次调用ocr接口，并将结果拼接
+                if (root.isDirectory()) {
+                    File[] files = root.listFiles();
+                    assert files != null;
+                    for (File file : files) {
+                        try {
+                            Thread.sleep(1000);
+                            partialResult.append(WebOCR.execute(file.getPath())); //科大讯飞OCR
+//                            partialResult.append(AliOCR.execute(file.getPath())); //阿里OCR
+                        } catch (Exception e) {
+                            System.out.println("counting error, skip...");
+                        }
                     }
                 }
+                result = partialResult.toString();
             }
-            result = partialResult.toString();
-        } else {
-            result = PDFExtractText.extractString(fileName);
+        } else if (fileName.contains(".png") || fileName.contains(".jpg")) {
+            //图片类型直接调用ocr
+            result = WebOCR.execute(fileName);
         }
+
+        System.out.println("fileExtractString: " + result);
         return result;
     }
 

@@ -37,9 +37,9 @@ public class PDF2pngUtil {
     }
 
     //转换全部的pdf
-    public static void pdf2png(String filename) throws IOException {
+    public static boolean pdf2png(String filename) throws IOException {
         if (!filename.contains(".pdf")) {
-            return;
+            return false;
         }
         // 将pdf装图片 并且自定义图片得格式大小
         File file = new File(filename);
@@ -60,6 +60,7 @@ public class PDF2pngUtil {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return true;
     }
 
     public static void main(String[] args) throws IOException {
