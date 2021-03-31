@@ -3,8 +3,7 @@ package utils;
 import com.spire.pdf.PdfDocument;
 import com.spire.pdf.PdfPageBase;
 
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 
 /**
  * Description: super crawler
@@ -47,6 +46,7 @@ public class PDFExtractText {
 
     /**
      * extract text from a pdf file. if composed by pictures(including with watermask covered) return ""
+     *
      * @param fileName pdf file
      * @return text
      */
@@ -66,9 +66,9 @@ public class PDFExtractText {
                 final String value = page.extractText(true);
                 if (i >= 1) {
                     //如果只能解析出水印的文字，那么前两页文字必定相同，直接返回空，启用ocr
-                    String firstPageValue = doc.getPages().get(i-1).extractText(true);
+                    String firstPageValue = doc.getPages().get(i - 1).extractText(true);
                     //length>=1 以防两个页面都是空白页面
-                    if (value.length() >=1 && value.equals(firstPageValue)) {
+                    if (value.length() >= 1 && value.equals(firstPageValue)) {
                         return "";
                     }
                 }
@@ -85,7 +85,8 @@ public class PDFExtractText {
     }
 
     public static void main(String[] args) {
-        String path = "";
-        extract(path);
+        String path = "D:\\data\\docShop\\test\\test.pdf";
+        final String result = extractString(path);
+//        System.out.println(result);
     }
 }

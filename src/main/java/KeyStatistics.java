@@ -1,8 +1,9 @@
 import ocr.iflytek.WebOCR;
 import org.ansj.splitWord.analysis.DicAnalysis;
+import org.apache.commons.collections4.CollectionUtils;
 import utils.DocumentExtractText;
+import utils.ItextpdfUtil;
 import utils.PDF2pngUtil;
-import utils.PDFExtractText;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -18,11 +19,12 @@ public class KeyStatistics {
 
     public static void main(String[] args) {
         final KeyStatistics keyStatistics = new KeyStatistics();
-        keyStatistics.execute("D:\\data\\docShop\\participle_task\\311\\test");
+        keyStatistics.execute("D:\\data\\docShop\\3.25招财社公众号研报\\1");
     }
 
     public void execute(String path) {
         File root = new File(path);
+        LinkedList<String> failedList = new LinkedList<>();
         // 如果这个路径是文件夹
         if (root.isDirectory()) {
             // 获取路径下的所有文件
@@ -33,17 +35,26 @@ public class KeyStatistics {
                     execute(file.getPath());
                 } else {
                     try {
-                        System.out.println("handling file: " + file.getName());
-                        process(file.getPath());
+                        System.out.println("handling file: " + file.getPath());
+                        process(file);
                     } catch (Exception e) {
+                        failedList.add(file.getPath());
                         System.out.println("counting error, skip...");
                     }
                 }
             }
+            String resultDesc = "共失败" + failedList.size() + "个, " + failedList.toString();
+            System.out.println(resultDesc);
+            if (!CollectionUtils.isEmpty(failedList)) {
+                flushStringTodisk(resultDesc, root.getPath() + "\\result\\_failedList.txt");
+            }
+            failedList.clear();
         }
+
     }
 
-    public void process(String fileName) throws Exception {
+    public void process(File file) throws Exception {
+        String fileName = file.getPath();
         //1. pdf to String
         String pdfContent = fileExtractString(fileName);
         //2. participle
@@ -51,7 +62,7 @@ public class KeyStatistics {
         //3. cout result of step 2 to a file named by pdf's name
         final String sortedParseResult = sortParticipleResult(parseResult);
 
-        flushStringTodisk(sortedParseResult, fileName + ".txt");
+        flushStringTodisk(sortedParseResult, file.getParent() + "\\result\\" + file.getName() + ".txt");
     }
 
     private String fileExtractString(String fileName) throws IOException {
@@ -61,7 +72,8 @@ public class KeyStatistics {
             System.out.println("fileExtractString: " + result);
         } else if (fileName.contains(".pdf")) {
             //step1 直接从pdf读文字
-            result = PDFExtractText.extractString(fileName);
+//            result = PDFExtractText.extractString(fileName);
+            result = ItextpdfUtil.getPdfContent(fileName);
             if ("".equals(result)) {
                 //由图片组成的pdf， 先转图片
                 PDF2pngUtil.pdf2png(fileName);
@@ -73,7 +85,7 @@ public class KeyStatistics {
                     assert files != null;
                     for (File file : files) {
                         try {
-                            Thread.sleep(1000);
+                            Thread.sleep(100);
                             partialResult.append(WebOCR.execute(file.getPath())); //科大讯飞OCR
 //                            partialResult.append(AliOCR.execute(file.getPath())); //阿里OCR
                         } catch (Exception e) {
@@ -124,11 +136,21 @@ public class KeyStatistics {
                 return o2.getValue().compareTo(o1.getValue());
             }
         });
-        return Arrays.toString(list.toArray());
+        List<Map.Entry<String, Integer>> result = new ArrayList<>();
+        for (Map.Entry<String, Integer> mapEntry : list) {
+            if (mapEntry.getValue() > 1) {
+                result.add(mapEntry);
+            }
+        }
+        return Arrays.toString(result.toArray());
     }
 
     private void flushStringTodisk(String input, String targetFileName) {
-        try (FileWriter writer = new FileWriter(targetFileName);) {
+        File file = new File(targetFileName);
+        if(!file.exists()){
+            file.getParentFile().mkdirs();
+        }
+        try (FileWriter writer = new FileWriter(file)) {
             writer.write(input);
             writer.flush();
         } catch (IOException e) {
