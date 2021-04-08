@@ -17,7 +17,22 @@ import java.util.*;
 public class ParticipleTest {
     public static void main(String[] args) throws IOException {
 
-        customDictByConfig();
+        natureFilter();
+    }
+
+    public static void natureFilter() {
+        final Result origin = ToAnalysis.parse("小红是一个美丽的姑娘，中午的时候小红自由地穿梭在人群中间");
+
+//        Result parse = DicAnalysis.parse("这是用户自定义词典增加新词的例子凹阳台");
+        System.out.println(origin);
+
+        List<String> handled = new ArrayList<>();
+        for (Term term : origin.getTerms()) {
+            if (term.natrue().natureStr.equals("n")) {
+                handled.add(term.getRealName());
+            }
+        }
+        System.out.println(handled);
     }
 
     public static void defaultUsage() throws IOException {

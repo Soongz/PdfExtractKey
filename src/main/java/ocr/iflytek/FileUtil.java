@@ -21,10 +21,10 @@ public class FileUtil {
 	 * @throws IOException
 	 */
 	public static byte[] read(String filePath) throws IOException {
-
-		InputStream in = new FileInputStream(filePath);
-		byte[] data = inputStream2ByteArray(in);
-		in.close();
+		byte[] data = null;
+		try(InputStream in = new FileInputStream(filePath);) {
+			data = inputStream2ByteArray(in);
+		}
 
 		return data;
 	}
@@ -38,13 +38,14 @@ public class FileUtil {
 	 */
 	private static byte[] inputStream2ByteArray(InputStream in) throws IOException {
 
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		byte[] buffer = new byte[1024 * 4];
-		int n = 0;
-		while ((n = in.read(buffer)) != -1) {
-			out.write(buffer, 0, n);
+		try(ByteArrayOutputStream out = new ByteArrayOutputStream();) {
+			byte[] buffer = new byte[1024 * 4];
+			int n = 0;
+			while ((n = in.read(buffer)) != -1) {
+				out.write(buffer, 0, n);
+			}
+			return out.toByteArray();
 		}
-		return out.toByteArray();
 	}
 
 	/**
