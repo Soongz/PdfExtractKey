@@ -23,7 +23,7 @@ public class DocClassify {
 
     public static void main(String[] args) {
         DocClassify docClassify = new DocClassify();
-        docClassify.execute("D:\\data\\docShop\\0319 所有文件\\allFiles");
+        docClassify.execute("D:\\data\\docShop\\0319 所有文件\\allFiles\\test");
     }
 
     public DocClassify() {
@@ -78,9 +78,9 @@ public class DocClassify {
         StringBuilder result = new StringBuilder(fileName);
         if (fileName.contains(".doc") || fileName.contains(".xls")) return result.toString();
         //1. extract content, and participle, filter useless words.
-        final String content = fileName + KeyStatistics.fileExtractString(file.getPath());
+        final String content = KeyStatistics.fileExtractString(file.getPath());
         String parseResult = DicAnalysis.parse(content).toStringWithOutNature();
-        final String participleContent = KeyStatistics.sortParticipleResult(parseResult);
+        final String participleContent = fileName + KeyStatistics.sortParticipleResult(parseResult);
 
         //2. analyze classification(first, sencond)
         final String classifyResult = classifyExec(fileName, participleContent);
@@ -101,15 +101,31 @@ public class DocClassify {
         StringBuilder result = new StringBuilder();
         String first = null;
         String second = null;
+        Classification target = null;
         for (Classification classification : PrincipleClass.classifications) {
-            second = classification.isSecond(content);
-            if (second != null) {
-                first = classification.name;
+            //逻辑规则，先用标题找所有的一级分类，如果标题能找到对应的一级分类，就去一级分类下找二级分类
+            //如果标题匹配不上一级分类， 用标题+内容 去找所有二级分类，如果找到二级分类，反推一级分类。
+            first = classification.isFirst(fileName);
+            if (first != null) {
+                target = classification;
                 break;
             }
-            first = classification.isFirst(fileName);
-            if (first != null) break;
         }
+
+        if (first != null) {
+            //如果一级分类找到，直接取找这个分类下的二级分类
+            second = target.isSecond(content, true);
+        } else {
+            //如果一级分类没找到，循环所有二级分类，找到二级分类的话 反推一级分类
+            for (Classification classification : PrincipleClass.classifications) {
+                second = classification.isSecond(content, false);
+                if (second != null) {
+                    first = classification.name;
+                    break;
+                }
+            }
+        }
+
         result.append(first == null ? "其他" : first).append(SPERATOR).append(second == null ? "其他" : second);
         return result.toString();
     }
@@ -134,7 +150,7 @@ public class DocClassify {
             return containsAtList(titleName, cls) ? name : null;
         }
 
-        public String isSecond(String content) {
+        public String isSecond(String content, boolean knownFirstLevel) {
 
             //特殊情况
             if ("政策法规".equals(name) && content.contains("解读")) {
@@ -144,7 +160,9 @@ public class DocClassify {
             if (CollectionUtils.isEmpty(next)) return null;
             for (Classification classification : next) {
                 final boolean isContains = containsAtList(content, classification.cls);
-                if (isContains) return classification.name;
+                if (isContains || (CollectionUtils.isEmpty(classification.cls) && knownFirstLevel) ) {
+                    return classification.name;
+                }
             }
             return null;
         }
@@ -176,7 +194,7 @@ public class DocClassify {
 
         public static final List<String> S_ZHENGCEFAGUI = Arrays.asList("决议", "决定", "命令", "令", "公报", "公告", "通告", "意见", "通知", "通报", "报告", "请示", "批复", "议案", "函", "纪要", "条例", "规定", "办法", "政策", "工法", "抽查工作", "产权");
         public static final List<String> S_ZHENGCEJIEDU = Arrays.asList("决议", "决定", "命令", "令", "公报", "公告", "通告", "意见", "通知", "通报", "报告", "请示", "批复", "议案", "函", "纪要", "条例", "规定", "办法", "解读");
-        public static final List<String> S_HANGYESHICHANG = Arrays.asList("市场", "楼市", "年", "半年", "季", "月", "周", "日报", "入市", "周刊月刊季刊年刊", "总结", "楼市", "风险", "房企", "金融", "养老", "康养", "不动产", "快报", "行业", "开盘", "点评", "证券", "观察", "商业", "分析", "情况", "大事记", "大事年表", "限售", "摇号", "二手房", "楼面", "地价", "房贷", "房价", "住宅", "商品房", "调控", "用地", "限购", "经济适用房", "两限房");
+        public static final List<String> S_HANGYESHICHANG = Arrays.asList("市场", "楼市", "年报", "半年报", "季报", "月报", "周报", "日报", "入市", "周刊", "月刊", "季刊", "年刊", "总结", "楼市", "风险", "房企", "金融", "养老", "康养", "不动产", "快报", "行业", "开盘", "点评", "证券", "观察", "商业", "分析", "情况", "大事记", "大事年表", "限售", "摇号", "二手房", "楼面", "地价", "房贷", "房价", "住宅", "商品房", "调控", "用地", "限购", "经济适用房", "两限房");
         public static final List<String> S_QUANSHANGZHISHU = Arrays.asList("指数", "数据", "LPR", "指标", "价格", "地价", "动态监测", "测量", "IPO", "增长", "下降", "提升", "涨幅", "上涨", "PMI", "供求比", "环比", "同比", "回落", "锐减");
         public static List<String> S_ANLIFENXI = Arrays.asList("社区", "国有企业", "物业", "企业", "服务", "集团", "可研", "可行性研究", "调研", "案例", "分析", "战略", "标准化", "产品", "方案");
 
@@ -200,8 +218,10 @@ public class DocClassify {
         public static final List<String> S_JIANZHUZHUANGXIU = Arrays.asList("装修", "装饰", "建筑", "风格", "施工", "地基", "精装", "室内");
         public static final List<String> S_XIANGMUGUIHUA = Arrays.asList("城市", "规划", "都市", "区域", "概念", "构想");
         public static final List<String> S_YUANLISHEJI = Arrays.asList("景观", "园林", "绿化", "造景", "植物");
-        public static final List<String> S_QITASHEJI = Arrays.asList("车库", "地下室", "其他无法分类的设计资料");
-        public static final List<String> S_CHANGYONGBIAOGE = Arrays.asList("表", "报表", "表格", "表单", "通知书", "申请书", "测算", "标准", "模块", "清单", "单", "问卷", "流程", "图表");
+//        public static final List<String> S_QITASHEJI = Arrays.asList("车库", "地下室");
+        public static final List<String> S_QITASHEJI = Collections.emptyList();
+
+        public static final List<String> S_CHANGYONGBIAOGE = Arrays.asList("表", "报表", "表格", "表单", "通知书", "申请书", "测算", "标准", "模块", "清单", "单", "问卷", "流程", "图表", "工程申报书");
         public static final List<String> S_CHANGYONGHETONG = Arrays.asList("合同", "协议", "声明", "招标", "标书", "投标", "书");
         public static final List<String> S_ZHIDULIUCHENG = Arrays.asList("指南", "制度", "指导", "办法", "流程", "要求", "标准", "手册", "规程", "指引", "说明", "模板", "标准化", "目录", "验收规范", "安全平台");
         public static final List<String> S_RENLIZIYUAN = Arrays.asList("培训", "员工", "入职", "薪酬", "年终总结", "绩效", "求职", "招聘", "职业", "人力资源", "面试", "员工手册", "薪资", "述职", "组织架构");
