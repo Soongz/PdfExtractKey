@@ -85,7 +85,8 @@ public class WebOCR {
                 stringBuilder.append(content).append("\n");
             }
         }
-        System.out.println("1/8response: " + stringBuilder.toString().substring(stringBuilder.length() >> 3));
+        System.out.println("OCR...");
+//        System.out.println("1/8response: " + stringBuilder.toString().substring(stringBuilder.length() >> 3));
         return stringBuilder.toString();
     }
 

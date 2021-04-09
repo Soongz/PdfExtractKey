@@ -87,7 +87,7 @@ public class KeyStatistics {
                     assert files != null;
                     for (File file : files) {
                         try {
-                            Thread.sleep(100);
+//                            Thread.sleep(100);
                             partialResult.append(WebOCR.execute(file.getPath())); //科大讯飞OCR
 //                            partialResult.append(AliOCR.execute(file.getPath())); //阿里OCR
                         } catch (Exception e) {
@@ -102,12 +102,12 @@ public class KeyStatistics {
             result = WebOCR.execute(fileName);
         }
 
-        System.out.println("fileExtractString: " + result);
+//        System.out.println("fileExtractString: " + result);
         return result;
     }
 
 
-    private String sortParticipleResult(String input) {
+    public static String sortParticipleResult(String input) {
         Map<String, Integer> map = new HashMap<>();
         String[] words = input.split(",");
         for (String word : words) {
