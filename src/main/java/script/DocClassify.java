@@ -9,6 +9,7 @@ import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Description: tess4j
@@ -20,15 +21,20 @@ public class DocClassify {
     private StringBuffer eachDirResult;
 
     private ThreadPoolExecutor executor;
+    private List<File> filePaths;
+
+    private AtomicLong precessdNum;
 
     public static void main(String[] args) {
         DocClassify docClassify = new DocClassify();
-        docClassify.execute("D:\\data\\docShop\\0319 所有文件\\allFiles\\test");
+        docClassify.execute("D:\\data\\docShop\\0319 所有文件\\allFilesGather\\all");
     }
 
     public DocClassify() {
         eachDirResult = new StringBuffer("文件, 一级分类, 二级分类").append("\n");
         executor = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new LinkedBlockingQueue<Runnable>());
+        filePaths = new ArrayList<>();
+        precessdNum = new AtomicLong(1);
     }
 
     public void execute(String path) {
@@ -44,36 +50,63 @@ public class DocClassify {
                     execute(file.getPath());
                 } else {
                     try {
-                        System.out.println("handling file: " + file.getPath());
-                        final String fileResult = process(file);
-                        eachDirResult.append(fileResult).append("\n");
+                        filePaths.add(file);
                     } catch (Exception e) {
                         failedList.add(file.getPath());
-                        System.out.println("counting error, skip...");
+                        System.out.println("offer to queue error, skip...");
                     }
                 }
             }
-            String resultDesc = "共失败" + failedList.size() + "个, " + failedList.toString();
-            System.out.println(resultDesc);
-            if (!CollectionUtils.isEmpty(failedList)) {
-                KeyStatistics.flushStringTodisk(resultDesc, root.getPath() + "\\result\\_failedList.txt");
-            }
-            if (eachDirResult.length() > 20) {
-                KeyStatistics.flushStringTodisk(eachDirResult.toString(), root.getPath() + "\\result\\classify.csv");
-//                String date = "_" + String.valueOf(new Date().getTime()).substring(10);
-//                KeyStatistics.flushStringTodisk(eachDirResult.toString(), "D:\\data\\docShop\\0319 所有文件\\result\\" + root.getName() + date + ".csv");
-            }
-            eachDirResult = new StringBuffer("文件, 一级分类, 二级分类").append("\n");
-            failedList.clear();
-
         }
+
+        for (final File file : filePaths) {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        System.out.println(Thread.currentThread().getName() + " is handling file: " + file.getPath());
+                        final String fileResult = process(file);
+                        eachDirResult.append(fileResult);
+                    } catch (Exception e) {
+                        assert file != null;
+                        failedList.add(file.getPath());
+                        e.printStackTrace();
+                        System.out.println("process error, added to failed list, now skiping...");
+                    }
+                }
+            });
+        }
+
+        while (true) {
+            if (filePaths.size() < precessdNum.intValue()) {
+                String resultDesc = "共失败" + failedList.size() + "个, " + failedList.toString();
+                System.out.println(resultDesc);
+                if (!CollectionUtils.isEmpty(failedList)) {
+                    KeyStatistics.flushStringTodisk(resultDesc, root.getPath() + "\\result\\_failedList.txt");
+                }
+                if (eachDirResult.length() > 20) {
+                    KeyStatistics.flushStringTodisk(eachDirResult.toString(), root.getPath() + "\\result\\classify.csv");
+                }
+                eachDirResult = new StringBuffer("文件, 一级分类, 二级分类").append("\n");
+                failedList.clear();
+                break;
+            }
+            try {
+                Thread.sleep(5000);
+                System.out.println("processing..." + precessdNum.intValue() + "/" + filePaths.size());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        executor.shutdown();
         System.out.println("thread pool is shutting down now......");
         System.out.println(new Date());
-//        executor.shutdown();
     }
 
 
     private String process(File file) throws IOException {
+        precessdNum.incrementAndGet();
         final String fileName = file.getName().replace(",", "_");
         StringBuilder result = new StringBuilder(fileName);
         if (fileName.contains(".doc") || fileName.contains(".xls")) return result.toString();
@@ -85,7 +118,9 @@ public class DocClassify {
         //2. analyze classification(first, sencond)
         final String classifyResult = classifyExec(fileName, participleContent);
         //3. make up result
-        result.append(",").append(classifyResult);
+        synchronized (this) {
+            result.append(",").append(classifyResult).append("\n");
+        }
         return result.toString();
     }
 
@@ -103,8 +138,8 @@ public class DocClassify {
         String second = null;
         Classification target = null;
         for (Classification classification : PrincipleClass.classifications) {
-            //逻辑规则，先用标题找所有的一级分类，如果标题能找到对应的一级分类，就去一级分类下找二级分类
-            //如果标题匹配不上一级分类， 用标题+内容 去找所有二级分类，如果找到二级分类，反推一级分类。
+            //逻辑规则,先用标题找所有的一级分类,如果标题能找到对应的一级分类,就去一级分类下找二级分类
+            //如果标题匹配不上一级分类, 用标题+内容 去找所有二级分类,如果找到二级分类,反推一级分类。
             first = classification.isFirst(fileName);
             if (first != null) {
                 target = classification;
@@ -113,10 +148,10 @@ public class DocClassify {
         }
 
         if (first != null) {
-            //如果一级分类找到，直接取找这个分类下的二级分类
+            //如果一级分类找到,直接取找这个分类下的二级分类
             second = target.isSecond(content, true);
         } else {
-            //如果一级分类没找到，循环所有二级分类，找到二级分类的话 反推一级分类
+            //如果一级分类没找到,循环所有二级分类,找到二级分类的话 反推一级分类
             for (Classification classification : PrincipleClass.classifications) {
                 second = classification.isSecond(content, false);
                 if (second != null) {
@@ -160,7 +195,7 @@ public class DocClassify {
             if (CollectionUtils.isEmpty(next)) return null;
             for (Classification classification : next) {
                 final boolean isContains = containsAtList(content, classification.cls);
-                if (isContains || (CollectionUtils.isEmpty(classification.cls) && knownFirstLevel) ) {
+                if (isContains || (CollectionUtils.isEmpty(classification.cls) && knownFirstLevel)) {
                     return classification.name;
                 }
             }
@@ -184,8 +219,8 @@ public class DocClassify {
         public static List<Classification> classifications = new ArrayList<>(8);
 
         public static final List<String> F_ZHENGCEFAGUI = Arrays.asList("决议", "决定", "命令", "令", "公报", "公告", "通告", "意见", "通知", "通报", "报告", "请示", "批复", "议案", "函", "纪要", "条例", "规定", "办法", "政策", "工法", "中华人民共和国", "发改委", "统计局", "中共中央", "中国社科院", "中央", "住建委", "房管局", "政务公开", "国土局", "统计局");
-        public static final List<String> F_YANJIUBAOGAO = Arrays.asList("案例", "分析", "预测", "总结", "预判", "报告", "快报", "研究", "行业", "动态", "业绩公告", "研判", "统计公报", "点评", "策略", "摘要", "调查", "方案", "总结", "要求", "展望", "解析", "洞察", "观点", "动态报告", "简报", "资讯", "探讨", "梳理", "解读", "起底", "追踪", "观察", "市场", "指数", "调研");
-        public static final List<String> F_XIANGMUYUNYING = Arrays.asList("项目", "运营", "经营", "策划", "管理", "融资", "土地", "规划", "报建", "物业", "投资", "决策", "交易");
+        public static final List<String> F_YANJIUBAOGAO = Arrays.asList("案例", "分析", "预测", "总结", "预判", "报告", "快报", "研究", "行业", "动态", "业绩公告", "研判", "统计公报", "点评", "策略", "摘要", "调查", "方案", "总结", "要求", "展望", "解析", "洞察", "观点", "动态报告", "简报", "资讯", "探讨", "梳理", "解读", "起底", "追踪", "观察", "市场", "指数", "调研", "分析报告", "调查报告", "研究报告", "增长", "下降", "提升", "涨幅", "上涨", "PMI", "供求比", "环比", "同比", "回落", "锐减", "房价", "降幅", "跟踪");
+        public static final List<String> F_XIANGMUYUNYING = Arrays.asList("项目", "运营", "经营", "策划", "管理", "融资", "土地", "规划", "报建", "物业", "投资", "决策", "交易", "闲置地", "施工");
         public static final List<String> F_CHENGBENGUANKONG = Arrays.asList("成本", "采购", "供应商", "销售", "工程", "开发", "培训", "管控");
         public static final List<String> F_YINGXIAOTUIGUANG = Arrays.asList("营销", "推广", "策划");
         public static final List<String> F_DICHANSHEJI = Arrays.asList("设计", "景观", "图纸", "图集", "户型", "鉴赏", "欣赏", "建筑");
@@ -194,8 +229,8 @@ public class DocClassify {
 
         public static final List<String> S_ZHENGCEFAGUI = Arrays.asList("决议", "决定", "命令", "令", "公报", "公告", "通告", "意见", "通知", "通报", "报告", "请示", "批复", "议案", "函", "纪要", "条例", "规定", "办法", "政策", "工法", "抽查工作", "产权");
         public static final List<String> S_ZHENGCEJIEDU = Arrays.asList("决议", "决定", "命令", "令", "公报", "公告", "通告", "意见", "通知", "通报", "报告", "请示", "批复", "议案", "函", "纪要", "条例", "规定", "办法", "解读");
-        public static final List<String> S_HANGYESHICHANG = Arrays.asList("市场", "楼市", "年报", "半年报", "季报", "月报", "周报", "日报", "入市", "周刊", "月刊", "季刊", "年刊", "总结", "楼市", "风险", "房企", "金融", "养老", "康养", "不动产", "快报", "行业", "开盘", "点评", "证券", "观察", "商业", "分析", "情况", "大事记", "大事年表", "限售", "摇号", "二手房", "楼面", "地价", "房贷", "房价", "住宅", "商品房", "调控", "用地", "限购", "经济适用房", "两限房");
-        public static final List<String> S_QUANSHANGZHISHU = Arrays.asList("指数", "数据", "LPR", "指标", "价格", "地价", "动态监测", "测量", "IPO", "增长", "下降", "提升", "涨幅", "上涨", "PMI", "供求比", "环比", "同比", "回落", "锐减");
+        public static final List<String> S_HANGYESHICHANG = Arrays.asList("市场", "楼市", "年报", "半年报", "季报", "月报", "周报", "日报", "入市", "周刊", "月刊", "季刊", "年刊", "总结", "楼市", "风险", "房企", "金融", "养老", "康养", "不动产", "快报", "行业", "开盘", "点评", "证券", "观察", "商业", "分析", "情况", "大事记", "大事年表", "限售", "摇号", "二手房", "楼面", "地价", "房贷", "房价", "住宅", "商品房", "调控", "用地", "限购", "经济适用房", "两限房", "楼面");
+        public static final List<String> S_QUANSHANGZHISHU = Arrays.asList("指数", "数据", "LPR", "指标", "价格", "地价", "动态监测", "测量", "IPO", "增长", "下降", "提升", "涨幅", "上涨", "PMI", "供求比", "环比", "同比", "回落", "锐减", "降幅");
         public static List<String> S_ANLIFENXI = Arrays.asList("社区", "国有企业", "物业", "企业", "服务", "集团", "可研", "可行性研究", "调研", "案例", "分析", "战略", "标准化", "产品", "方案");
 
         public static final List<String> S_QIYEMINGCHENG = Arrays.asList("万科", "绿地", "易居", "乐居", "中原", "保利");
@@ -205,7 +240,7 @@ public class DocClassify {
         public static final List<String> S_DIAOCHAYANJIU = Collections.emptyList();
         public static final List<String> S_QIANQIKEYAN = Arrays.asList("可行性研究", "策划", "调研", "定位", "考察", "测算", "估算", "评估", "招商", "开发", "闲置地");
         public static final List<String> S_DICHANRONGZI = Arrays.asList("融资", "贷款", "债券", "债务", "现金", "银行", "资金", "投资");
-        public static final List<String> S_TUDIJIAOYI = Arrays.asList("拿地", "取地", "均价", "金额", "区域", "土地", "招拍", "竞标", "产权", "地价", "成交", "出让", "拍卖", "招标", "圈地", "买地", "流标", "交易", "溢价", "成交", "抛售", "售卖");
+        public static final List<String> S_TUDIJIAOYI = Arrays.asList("拿地", "取地", "均价", "金额", "区域", "土地", "招拍", "竞标", "产权", "地价", "成交", "出让", "拍卖", "招标", "圈地", "买地", "流标", "交易", "溢价", "成交", "抛售", "售卖", "投标");
         public static final List<String> S_GUIHUABAOJIAN = Arrays.asList("报批", "报建", "流程", "前期", "资料", "工程", "规划", "手续", "设计", "操作", "定位");
         public static final List<String> S_WUYEGUANLI = Arrays.asList("服务", "物管", "物业", "业主", "园区", "生活");
         public static final List<String> S_CHENGBENGUANLI = Arrays.asList("成本", "控制", "精细化", "谈判", "报价", "估算", "预算", "核算");
@@ -218,7 +253,7 @@ public class DocClassify {
         public static final List<String> S_JIANZHUZHUANGXIU = Arrays.asList("装修", "装饰", "建筑", "风格", "施工", "地基", "精装", "室内");
         public static final List<String> S_XIANGMUGUIHUA = Arrays.asList("城市", "规划", "都市", "区域", "概念", "构想");
         public static final List<String> S_YUANLISHEJI = Arrays.asList("景观", "园林", "绿化", "造景", "植物");
-//        public static final List<String> S_QITASHEJI = Arrays.asList("车库", "地下室");
+        //        public static final List<String> S_QITASHEJI = Arrays.asList("车库", "地下室");
         public static final List<String> S_QITASHEJI = Collections.emptyList();
 
         public static final List<String> S_CHANGYONGBIAOGE = Arrays.asList("表", "报表", "表格", "表单", "通知书", "申请书", "测算", "标准", "模块", "清单", "单", "问卷", "流程", "图表", "工程申报书");
