@@ -3,25 +3,23 @@ package textrank;
 import org.ansj.domain.Result;
 import org.ansj.domain.Term;
 import org.ansj.splitWord.analysis.ToAnalysis;
+import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.*;
 
 /**
- * Description: tess4j
+ * Description: 构造TextRank java数据结构
  *
  * @author Soong
  */
 public class TRStructure {
 
     private static final Integer WINDOW_SIZE = 5;
-    private static final double k1 = 2d;
-    private static final double d = 0.85d;
-
     /**
      * 有用的词汇
-     * 名词 形容词
+     * 名词、动词、形容词、副词
      */
-    private static final List<String> speeches = Arrays.asList("n", "a");
+    private static final List<String> speeches = Arrays.asList("n", "a", "vn", "d", "ns");
 
 
     /**
@@ -37,7 +35,6 @@ public class TRStructure {
      * 所有窗口
      */
     private Map<String, List<String>> windows;
-
 
     public TRStructure(String content) {
         this.content = content;
@@ -57,7 +54,7 @@ public class TRStructure {
         final Result origin = ToAnalysis.parse(this.content);
         useful_words = new LinkedList<>();
         for (Term term : origin.getTerms()) {
-            if (containAtList(term.natrue().natureStr, speeches)) {
+            if (containAtList(term.natrue().natureStr, speeches) && term.getRealName().length() > 1) {
                 useful_words.add(term.getRealName());
             }
         }
@@ -67,13 +64,17 @@ public class TRStructure {
      * 构建窗口
      */
     public void buildWindow() {
+        windows = new HashMap<>(useful_words.size());
         for (int i = 0; i < useful_words.size(); i++) {
-            List<String> adjacence = new ArrayList<>(WINDOW_SIZE * 2);
-            for (int j = i - 5; j < i + 5; j++) {
-                if (j < 0 || j > useful_words.size()) continue;
-                adjacence.add(useful_words.get(j));
+            List<String> adjacent = new ArrayList<>(WINDOW_SIZE * 2);
+            for (int j = i - WINDOW_SIZE; j < i + WINDOW_SIZE; j++) {
+                if (j < 0 || j >= useful_words.size()) continue;
+                adjacent.add(useful_words.get(j));
             }
-            this.windows.put(useful_words.get(i), adjacence);
+            if (!CollectionUtils.isEmpty(windows.get(useful_words.get(i)))) {
+                adjacent.addAll(windows.get(useful_words.get(i)));
+            }
+            this.windows.put(useful_words.get(i), adjacent);
         }
     }
 
@@ -84,5 +85,13 @@ public class TRStructure {
             }
         }
         return false;
+    }
+
+    public List<String> getUseful_words() {
+        return useful_words;
+    }
+
+    public Map<String, List<String>> getWindows() {
+        return windows;
     }
 }
