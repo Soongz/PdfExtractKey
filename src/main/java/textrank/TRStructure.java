@@ -21,7 +21,7 @@ public class TRStructure {
      */
     private static final List<String> speeches = Arrays.asList("n", "a", "vn", "d", "ns");
 
-    private static final char[] separator = new char[]{',', '.'};
+    private static final char[] separator = new char[]{',', '.', '?', '，', '。', '？'};
 
     /**
      * 划分后的句子
@@ -29,9 +29,13 @@ public class TRStructure {
     private List<String> sentences;
 
     /**
-     * 相似句子关系
+     * 句子核心词汇表
      */
-    private Map<Integer, List<String>> similarityWindow;
+    private Map<Integer, Set<String>> purgedSentence;
+
+    private double[][] similarity;
+
+    private Map<Integer, Set<Integer>> sentenceWindows;
 
 
     /**
@@ -60,7 +64,28 @@ public class TRStructure {
             participle();
             buildWindow();
         } else if (Dimension.SENTENCE.equals(dimension)) {
+            //1. 划分句子
+            //2. 句子分词 去除停用词
+            //3. 计算句子相似度
+            //4. 构造窗口
             splitSentence(separator);
+            sentencePurging();
+            calSimilarity();
+            buildSentenceWindow();
+        }
+    }
+
+    /**
+     * 构造句子窗口（有相似度的才会是邻居）
+     */
+    private void buildSentenceWindow() {
+        sentenceWindows = new HashMap<>();
+        for (int i = 0; i < similarity.length; i++) {
+            Set<Integer> adjNum = new HashSet<>();
+            for (int j = 0; j < similarity.length; j++) {
+                if (similarity[i][j] != 0) adjNum.add(j);
+            }
+            sentenceWindows.put(i, adjNum);
         }
     }
 
@@ -79,7 +104,7 @@ public class TRStructure {
     }
 
     /**
-     * 构建窗口
+     * 构建关键词窗口
      */
     public void buildWindow() {
         windows = new HashMap<>(useful_words.size());
@@ -115,6 +140,66 @@ public class TRStructure {
 
     }
 
+    /**
+     * 净化句子，刪除停用词，无用的词性
+     */
+    public void sentencePurging() {
+        purgedSentence = new HashMap<>();
+        for (int i = 0; i < sentences.size(); i++) {
+            String sentence = sentences.get(i);
+            final Result origin = ToAnalysis.parse(sentence);
+            Set<String> survior = new HashSet<>();
+            for (Term term : origin.getTerms()) {
+                if (containAtList(term.natrue().natureStr, speeches) && term.getRealName().length() > 1) {
+                    survior.add(term.getRealName());
+                }
+            }
+            purgedSentence.put(i, survior);
+        }
+    }
+
+    /**
+     * 计算句子相似度
+     * 此方法为论文中推荐的方法
+     */
+    public void calSimilarity() {
+        similarity = new double[purgedSentence.size()][purgedSentence.size()];
+        for (Map.Entry<Integer, Set<String>> entry : purgedSentence.entrySet()) {
+            final Integer index = entry.getKey();
+            final Set<String> currentValue = entry.getValue();
+            for (int i = 0; i < purgedSentence.size(); i++) {
+                if (index == i) continue; //自己与自己不计算相似度
+
+
+                final Set<String> otherOne = purgedSentence.get(i);
+                if (currentValue.size() == 0 || otherOne.size() == 0) {
+                    similarity[index][i] = 0.0;
+                    continue;
+                }
+
+                final int i1 = commonWordCount(currentValue, otherOne);
+                double x;
+                final double denominator = (x = Math.log10(currentValue.size() * otherOne.size())) == 0 ? 1 : x;
+                double sij = i1 / denominator;
+                similarity[index][i] = sij;
+            }
+
+        }
+    }
+
+    /**
+     * 计算两个list中相同词的个数
+     */
+    private int commonWordCount(Set<String> t1, Set<String> t2) {
+        int result = 0;
+        for (String s : t1) {
+            if (containAtList(s, t2)) {
+                result++;
+            }
+        }
+        return result;
+    }
+
 
     private boolean containAtList(char s, char[] arr) {
         for (char c : arr) {
@@ -125,7 +210,7 @@ public class TRStructure {
         return false;
     }
 
-    private boolean containAtList(String t, List<String> list) {
+    private boolean containAtList(String t, Collection<String> list) {
         for (String o : list) {
             if (t.equals(o)) {
                 return true;
