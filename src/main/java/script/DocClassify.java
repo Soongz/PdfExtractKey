@@ -1,5 +1,6 @@
 package script;
 
+import io.netty.util.internal.StringUtil;
 import org.ansj.splitWord.analysis.DicAnalysis;
 import org.apache.commons.collections4.CollectionUtils;
 
@@ -47,7 +48,7 @@ public class DocClassify {
             assert files != null;
             for (File file : files) {
                 if (file.isDirectory()) {
-                    execute(file.getPath());
+//                    execute(file.getPath());
                 } else {
                     try {
                         filePaths.add(file);
@@ -111,7 +112,7 @@ public class DocClassify {
         StringBuilder result = new StringBuilder(fileName);
         if (fileName.contains(".doc") || fileName.contains(".xls")) return result.toString();
         //1. extract content, and participle, filter useless words.
-        final String content = KeyStatistics.fileExtractString(file.getPath());
+        final String content = KeyStatistics.fileExtractStringCache(file.getPath(), fileName);
         String parseResult = DicAnalysis.parse(content).toStringWithOutNature();
         final String participleContent = fileName + KeyStatistics.sortParticipleResult(parseResult);
 
@@ -149,19 +150,32 @@ public class DocClassify {
 
         if (first != null) {
             //如果一级分类找到,直接取找这个分类下的二级分类
-            second = target.isSecond(content, true);
+            second = target.isSecond(fileName, true);
+            if (StringUtil.isNullOrEmpty(second)) second = target.isSecond(content, true);
         } else {
             //如果一级分类没找到,循环所有二级分类,找到二级分类的话 反推一级分类
+            //先用标题判断
             for (Classification classification : PrincipleClass.classifications) {
-                second = classification.isSecond(content, false);
+                second = classification.isSecond(fileName, false);
                 if (second != null) {
                     first = classification.name;
                     break;
                 }
             }
+            //标题没找出二级分类，再用内容找二级分类
+            if (StringUtil.isNullOrEmpty(second)) {
+                for (Classification classification : PrincipleClass.classifications) {
+                    second = classification.isSecond(content, false);
+                    if (second != null) {
+                        first = classification.name;
+                        break;
+                    }
+                }
+            }
+
         }
 
-        result.append(first == null ? "其他" : first).append(SPERATOR).append(second == null ? "其他" : second);
+        result.append(first == null ? "其他资料" : first).append(SPERATOR).append(second == null ? "其他资料" : second);
         return result.toString();
     }
 
@@ -188,7 +202,7 @@ public class DocClassify {
         public String isSecond(String content, boolean knownFirstLevel) {
 
             //特殊情况
-            if ("政策法规".equals(name) && content.contains("解读")) {
+            if ("政策法规".equals(name) && containsAtList(content, PrincipleClass.S_ZHENGCEJIEDU)) {
                 return "政策解读";
             }
 
@@ -218,17 +232,17 @@ public class DocClassify {
 
         public static List<Classification> classifications = new ArrayList<>(8);
 
-        public static final List<String> F_ZHENGCEFAGUI = Arrays.asList("决议", "决定", "命令", "令", "公报", "公告", "通告", "意见", "通知", "通报", "报告", "请示", "批复", "议案", "函", "纪要", "条例", "规定", "办法", "政策", "工法", "中华人民共和国", "发改委", "统计局", "中共中央", "中国社科院", "中央", "住建委", "房管局", "政务公开", "国土局", "统计局");
+        public static final List<String> F_ZHENGCEFAGUI = Arrays.asList("决议", "决定", "命令", "公报", "公告", "通告", "意见", "通知", "通报", "请示", "批复", "议案", "函", "纪要", "条例", "规定", "办法", "政策", "中华人民共和国", "发改委", "统计局", "中共中央", "中央", "住建委", "房管局", "政务公开", "国土局", "公示");
         public static final List<String> F_YANJIUBAOGAO = Arrays.asList("案例", "分析", "预测", "总结", "预判", "报告", "快报", "研究", "行业", "动态", "业绩公告", "研判", "统计公报", "点评", "策略", "摘要", "调查", "方案", "总结", "要求", "展望", "解析", "洞察", "观点", "动态报告", "简报", "资讯", "探讨", "梳理", "解读", "起底", "追踪", "观察", "市场", "指数", "调研", "分析报告", "调查报告", "研究报告", "增长", "下降", "提升", "涨幅", "上涨", "PMI", "供求比", "环比", "同比", "回落", "锐减", "房价", "降幅", "跟踪");
         public static final List<String> F_XIANGMUYUNYING = Arrays.asList("项目", "运营", "经营", "策划", "管理", "融资", "土地", "规划", "报建", "物业", "投资", "决策", "交易", "闲置地", "施工");
         public static final List<String> F_CHENGBENGUANKONG = Arrays.asList("成本", "采购", "供应商", "销售", "工程", "开发", "培训", "管控");
         public static final List<String> F_YINGXIAOTUIGUANG = Arrays.asList("营销", "推广", "策划");
         public static final List<String> F_DICHANSHEJI = Arrays.asList("设计", "景观", "图纸", "图集", "户型", "鉴赏", "欣赏", "建筑");
-        public static final List<String> F_TONGYONGGONGJU = Arrays.asList("范文", "范本", "模板", "手册", "指南", "协议", "教材", "表格", "表", "报表", "表单", "示例", "制度", "声明", "流程", "合同", "规范", "模型", "模块", "示范", "教程", "大全", "汇编", "清单", "单", "说明", "问卷", "图表", "样本", "规程", "指引", "要求", "述职", "目录");
+        public static final List<String> F_TONGYONGGONGJU = Arrays.asList("范文", "范本", "模板", "手册", "指南", "协议", "教材", "表格", "表", "报表", "表单", "示例", "制度", "声明", "流程", "合同", "规范", "模型", "模块", "教程", "大全", "汇编", "清单", "单", "说明", "问卷", "图表", "样本", "规程", "指引", "要求", "述职", "目录");
 
 
-        public static final List<String> S_ZHENGCEFAGUI = Arrays.asList("决议", "决定", "命令", "令", "公报", "公告", "通告", "意见", "通知", "通报", "报告", "请示", "批复", "议案", "函", "纪要", "条例", "规定", "办法", "政策", "工法", "抽查工作", "产权");
-        public static final List<String> S_ZHENGCEJIEDU = Arrays.asList("决议", "决定", "命令", "令", "公报", "公告", "通告", "意见", "通知", "通报", "报告", "请示", "批复", "议案", "函", "纪要", "条例", "规定", "办法", "解读");
+        public static final List<String> S_ZHENGCEFAGUI = Arrays.asList("决议", "决定", "命令", "公报", "公告", "通告", "意见", "通知", "通报", "报告", "请示", "批复", "议案", "函", "纪要", "条例", "规定", "办法", "政策", "抽查工作", "产权");
+        public static final List<String> S_ZHENGCEJIEDU = Arrays.asList( "解读", "跟踪报告", "点评", "讲政策", "周报", "周刊", "报告", "月报", "日报", "解析");
         public static final List<String> S_HANGYESHICHANG = Arrays.asList("市场", "楼市", "年报", "半年报", "季报", "月报", "周报", "日报", "入市", "周刊", "月刊", "季刊", "年刊", "总结", "楼市", "风险", "房企", "金融", "养老", "康养", "不动产", "快报", "行业", "开盘", "点评", "证券", "观察", "商业", "分析", "情况", "大事记", "大事年表", "限售", "摇号", "二手房", "楼面", "地价", "房贷", "房价", "住宅", "商品房", "调控", "用地", "限购", "经济适用房", "两限房", "楼面");
         public static final List<String> S_QUANSHANGZHISHU = Arrays.asList("指数", "数据", "LPR", "指标", "价格", "地价", "动态监测", "测量", "IPO", "增长", "下降", "提升", "涨幅", "上涨", "PMI", "供求比", "环比", "同比", "回落", "锐减", "降幅");
         public static List<String> S_ANLIFENXI = Arrays.asList("社区", "国有企业", "物业", "企业", "服务", "集团", "可研", "可行性研究", "调研", "案例", "分析", "战略", "标准化", "产品", "方案");
@@ -256,8 +270,8 @@ public class DocClassify {
         //        public static final List<String> S_QITASHEJI = Arrays.asList("车库", "地下室");
         public static final List<String> S_QITASHEJI = Collections.emptyList();
 
-        public static final List<String> S_CHANGYONGBIAOGE = Arrays.asList("表", "报表", "表格", "表单", "通知书", "申请书", "测算", "标准", "模块", "清单", "单", "问卷", "流程", "图表", "工程申报书");
-        public static final List<String> S_CHANGYONGHETONG = Arrays.asList("合同", "协议", "声明", "招标", "标书", "投标", "书");
+        public static final List<String> S_CHANGYONGBIAOGE = Arrays.asList("报表", "表格", "表单", "通知书", "申请书", "测算", "标准", "模块", "清单", "问卷", "流程", "图表", "工程申报书");
+        public static final List<String> S_CHANGYONGHETONG = Arrays.asList("合同", "协议", "声明", "招标", "标书");
         public static final List<String> S_ZHIDULIUCHENG = Arrays.asList("指南", "制度", "指导", "办法", "流程", "要求", "标准", "手册", "规程", "指引", "说明", "模板", "标准化", "目录", "验收规范", "安全平台");
         public static final List<String> S_RENLIZIYUAN = Arrays.asList("培训", "员工", "入职", "薪酬", "年终总结", "绩效", "求职", "招聘", "职业", "人力资源", "面试", "员工手册", "薪资", "述职", "组织架构");
         public static final List<String> S_QITAZILIAO = Collections.emptyList();

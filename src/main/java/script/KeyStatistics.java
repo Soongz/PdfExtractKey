@@ -1,5 +1,6 @@
 package script;
 
+import io.netty.util.internal.StringUtil;
 import ocr.iflytek.WebOCR;
 import org.ansj.splitWord.analysis.DicAnalysis;
 import org.apache.commons.collections4.CollectionUtils;
@@ -7,9 +8,7 @@ import utils.DocumentExtractText;
 import utils.ItextpdfUtil;
 import utils.PDF2pngUtil;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -107,6 +106,52 @@ public class KeyStatistics {
     }
 
 
+    public static String fileExtractStringCache(String filePath, String fileName) throws IOException {
+        String result = null;
+        if (filePath.contains(".doc")) {
+            result = DocumentExtractText.extractText(filePath);
+            System.out.println("fileExtractString: " + result);
+        } else if (filePath.contains(".pdf")) {
+            //step1 直接从pdf读文字
+            result = ItextpdfUtil.getPdfContent(filePath);
+            if ("".equals(result)) {
+                //如果之前解析过，就不用再次走OCR了 直接读txt
+                result = extractStringFromTxt(filePath + "dir\\" + fileName + ".txt");
+                if (!StringUtil.isNullOrEmpty(result)) {
+                    System.out.println("working with text....");
+                    return result;
+                }
+                //由图片组成的pdf， 先转图片
+                PDF2pngUtil.pdf2png(filePath);
+                StringBuilder partialResult = new StringBuilder();
+                File root = new File(filePath + "dir");
+                //遍历图片所在的路径，依次调用ocr接口，并将结果拼接
+                if (root.isDirectory()) {
+                    File[] files = root.listFiles();
+                    assert files != null;
+                    for (File file : files) {
+                        try {
+//                            Thread.sleep(100);
+                            partialResult.append(WebOCR.execute(file.getPath())); //科大讯飞OCR
+//                            partialResult.append(AliOCR.execute(file.getPath())); //阿里OCR
+                        } catch (Exception e) {
+                            System.out.println("counting error, skip...");
+                        }
+                    }
+                }
+                result = partialResult.toString();
+                flushStringTodisk(result, filePath + "dir\\" + fileName + ".txt");
+            }
+        } else if (filePath.contains(".png") || filePath.contains(".jpg")) {
+            //图片类型直接调用ocr
+            result = WebOCR.execute(filePath);
+        }
+
+//        System.out.println("fileExtractString: " + result);
+        return result;
+    }
+
+
     public static String sortParticipleResult(String input) {
         Map<String, Integer> map = new HashMap<>();
         String[] words = input.split(",");
@@ -158,5 +203,29 @@ public class KeyStatistics {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+
+    public static String extractStringFromTxt(String filePath) {
+        File file = new File(filePath);
+        StringBuilder result = new StringBuilder();
+        try (FileInputStream inputStream = new FileInputStream(file);
+             InputStreamReader read = new InputStreamReader(inputStream)) {
+
+            if (file.isFile() && file.exists()) {
+                BufferedReader bufferedReader = new BufferedReader(read);
+                String lineTxt = null;
+                while ((lineTxt = bufferedReader.readLine()) != null) {
+                    result.append(lineTxt);
+                }
+                read.close();
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+            System.out.println("读取文件内容出错");
+            return null;
+        }
+        return result.toString();
     }
 }
