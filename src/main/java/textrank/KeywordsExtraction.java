@@ -17,13 +17,9 @@ public class KeywordsExtraction {
     }
 
     public void execute(String content) {
-        final TextRank textRank = new TextRank(content);
+        final TextRank textRank = new TextRank(content, TRStructure.Dimension.WORD);
         textRank.rankRecursion();
         final TreeMap<String, Double> rankMap = textRank.getRankMap();
-
-//        for (Map.Entry<String, Double> entry : rankMap.entrySet()) {
-//            System.out.println(entry.getKey() + ": " + entry.getValue());
-//        }
     }
 
 

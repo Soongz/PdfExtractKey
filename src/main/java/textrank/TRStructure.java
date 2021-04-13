@@ -21,6 +21,18 @@ public class TRStructure {
      */
     private static final List<String> speeches = Arrays.asList("n", "a", "vn", "d", "ns");
 
+    private static final char[] separator = new char[]{',', '.'};
+
+    /**
+     * 划分后的句子
+     */
+    private List<String> sentences;
+
+    /**
+     * 相似句子关系
+     */
+    private Map<Integer, List<String>> similarityWindow;
+
 
     /**
      * 分析的内容主体
@@ -31,19 +43,25 @@ public class TRStructure {
      */
     private List<String> useful_words;
 
+    private Dimension dimension;
     /**
      * 所有窗口
      */
     private Map<String, List<String>> windows;
 
-    public TRStructure(String content) {
+    public TRStructure(String content, Dimension dimension) {
         this.content = content;
+        this.dimension = dimension;
         initial();
     }
 
     private void initial() {
-        participle();
-        buildWindow();
+        if (Dimension.WORD.equals(dimension)) {
+            participle();
+            buildWindow();
+        } else if (Dimension.SENTENCE.equals(dimension)) {
+            splitSentence(separator);
+        }
     }
 
 
@@ -78,6 +96,35 @@ public class TRStructure {
         }
     }
 
+    /**
+     * 划分句子
+     *
+     * @param sentenceSeparator 分隔符列表
+     */
+    public void splitSentence(char[] sentenceSeparator) {
+        sentences = new ArrayList<>();
+        int start = 0;
+        for (int i = 0; i < content.length(); i++) {
+            if (containAtList(content.charAt(i), sentenceSeparator)) {
+                if (i - start > 3) {
+                    sentences.add(content.substring(start, i));
+                    start = i + 1;
+                }
+            }
+        }
+
+    }
+
+
+    private boolean containAtList(char s, char[] arr) {
+        for (char c : arr) {
+            if (c == s) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean containAtList(String t, List<String> list) {
         for (String o : list) {
             if (t.equals(o)) {
@@ -93,5 +140,9 @@ public class TRStructure {
 
     public Map<String, List<String>> getWindows() {
         return windows;
+    }
+
+    enum Dimension {
+        WORD, SENTENCE
     }
 }

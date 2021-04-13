@@ -33,8 +33,8 @@ public class TextRank {
     //should be TreeMap
     private TreeMap<String, Double> rankMap;
 
-    public TextRank(String content) {
-        trStructure = new TRStructure(content);
+    public TextRank(String content, TRStructure.Dimension dimension) {
+        trStructure = new TRStructure(content, dimension);
         this.candidates = trStructure.getUseful_words();
         this.windows = trStructure.getWindows();
         rankMap = new TreeMap<>();
