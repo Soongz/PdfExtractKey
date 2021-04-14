@@ -21,7 +21,7 @@ public class TRStructure {
      */
     private static final List<String> speeches = Arrays.asList("n", "a", "vn", "d", "ns");
 
-    private static final char[] separator = new char[]{',', '.', '?', '，', '。', '？'};
+    private static final char[] separator = new char[]{ '.', '?', '。', '？'};
 
     /**
      * 划分后的句子
@@ -225,6 +225,22 @@ public class TRStructure {
 
     public Map<String, List<String>> getWindows() {
         return windows;
+    }
+
+    public List<String> getSentences() {
+        return sentences;
+    }
+
+    public Map<Integer, Set<String>> getPurgedSentence() {
+        return purgedSentence;
+    }
+
+    public double[][] getSimilarity() {
+        return similarity;
+    }
+
+    public Map<Integer, Set<Integer>> getSentenceWindows() {
+        return sentenceWindows;
     }
 
     enum Dimension {
