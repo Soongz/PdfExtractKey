@@ -31,11 +31,14 @@ public class TRStructure {
     /**
      * 句子核心词汇表
      */
-    private Map<Integer, Set<String>> purgedSentence;
+    private Map<Integer, List<String>> purgedSentence;
 
+    /**
+     * 相似矩阵
+     */
     private double[][] similarity;
 
-    private Map<Integer, Set<Integer>> sentenceWindows;
+    private Map<Integer, List<Integer>> sentenceWindows;
 
 
     /**
@@ -70,7 +73,10 @@ public class TRStructure {
             //4. 构造窗口
             splitSentence(separator);
             sentencePurging();
-            calSimilarity();
+            //计算相似矩阵， 又不同的解法。这里代码规范有点丑陋(应该设计接口，实现calculateSimilarity)，todo list item + 1
+//            calSimilarity();
+            final BM25 bm25 = new BM25(purgedSentence);
+            this.similarity = bm25.getSimilarity();
             buildSentenceWindow();
         }
     }
@@ -81,7 +87,7 @@ public class TRStructure {
     private void buildSentenceWindow() {
         sentenceWindows = new HashMap<>();
         for (int i = 0; i < similarity.length; i++) {
-            Set<Integer> adjNum = new HashSet<>();
+            List<Integer> adjNum = new ArrayList<>();
             for (int j = 0; j < similarity.length; j++) {
                 if (similarity[i][j] != 0) adjNum.add(j);
             }
@@ -148,7 +154,7 @@ public class TRStructure {
         for (int i = 0; i < sentences.size(); i++) {
             String sentence = sentences.get(i);
             final Result origin = ToAnalysis.parse(sentence);
-            Set<String> survior = new HashSet<>();
+            List<String> survior = new ArrayList<>();
             for (Term term : origin.getTerms()) {
                 if (containAtList(term.natrue().natureStr, speeches) && term.getRealName().length() > 1) {
                     survior.add(term.getRealName());
@@ -164,14 +170,14 @@ public class TRStructure {
      */
     public void calSimilarity() {
         similarity = new double[purgedSentence.size()][purgedSentence.size()];
-        for (Map.Entry<Integer, Set<String>> entry : purgedSentence.entrySet()) {
+        for (Map.Entry<Integer, List<String>> entry : purgedSentence.entrySet()) {
             final Integer index = entry.getKey();
-            final Set<String> currentValue = entry.getValue();
+            final List<String> currentValue = entry.getValue();
             for (int i = 0; i < purgedSentence.size(); i++) {
                 if (index == i) continue; //自己与自己不计算相似度
 
 
-                final Set<String> otherOne = purgedSentence.get(i);
+                final List<String> otherOne = purgedSentence.get(i);
                 if (currentValue.size() == 0 || otherOne.size() == 0) {
                     similarity[index][i] = 0.0;
                     continue;
@@ -190,7 +196,7 @@ public class TRStructure {
     /**
      * 计算两个list中相同词的个数
      */
-    private int commonWordCount(Set<String> t1, Set<String> t2) {
+    private int commonWordCount(List<String> t1, List<String> t2) {
         int result = 0;
         for (String s : t1) {
             if (containAtList(s, t2)) {
@@ -231,7 +237,7 @@ public class TRStructure {
         return sentences;
     }
 
-    public Map<Integer, Set<String>> getPurgedSentence() {
+    public Map<Integer, List<String>> getPurgedSentence() {
         return purgedSentence;
     }
 
@@ -239,7 +245,7 @@ public class TRStructure {
         return similarity;
     }
 
-    public Map<Integer, Set<Integer>> getSentenceWindows() {
+    public Map<Integer, List<Integer>> getSentenceWindows() {
         return sentenceWindows;
     }
 

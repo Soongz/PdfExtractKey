@@ -24,11 +24,11 @@ public class SentenceRank {
     /**
      * 句子核心词汇表
      */
-    private Map<Integer, Set<String>> purgedSentence;
+    private Map<Integer, List<String>> purgedSentence;
 
     private double[][] similarity;
 
-    private Map<Integer, Set<Integer>> sentenceWindows;
+    private Map<Integer, List<Integer>> sentenceWindows;
 
     private Map<Integer, Double> rankMap;
 
@@ -89,11 +89,11 @@ public class SentenceRank {
     private void rankRecursion() {
         for (int i = 0; i < RECURSION_TIMES; i++) {
 
-            for (Map.Entry<Integer, Set<Integer>> entry : sentenceWindows.entrySet()) {
+            for (Map.Entry<Integer, List<Integer>> entry : sentenceWindows.entrySet()) {
                 //每个句子的下标
                 final Integer leadIndex = entry.getKey();
                 //每个句子 有相似度的 句子下标们
-                final Set<Integer> adjacent = entry.getValue();
+                final List<Integer> adjacent = entry.getValue();
 
                 double adjRef = calculateAdjacent(leadIndex, adjacent);
 
@@ -111,10 +111,10 @@ public class SentenceRank {
      * @param adjacent  当前句子有相似度的邻居们
      * @return 邻居给自己打分结果
      */
-    private double calculateAdjacent(int leadIndex, Set<Integer> adjacent) {
+    private double calculateAdjacent(int leadIndex, List<Integer> adjacent) {
         double result = 0;
         for (Integer j : adjacent) {
-            final Set<Integer> outJAdjacent = sentenceWindows.get(j);
+            final List<Integer> outJAdjacent = sentenceWindows.get(j);
             double wji = similarity[j][leadIndex];
             double sum_wjk = 0;
             for (Integer k : outJAdjacent) {
