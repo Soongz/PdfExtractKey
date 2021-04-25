@@ -34,7 +34,7 @@ public class SentenceRank {
 
 
     public SentenceRank(String content) {
-        trStructure = new TRStructure(content, TRStructure.Dimension.SENTENCE);
+        trStructure = new TRStructure(content, TRStructure.Dimension.SENTENCE, new BM25());
         this.sentences = trStructure.getSentences();
         this.purgedSentence = trStructure.getPurgedSentence();
         this.similarity = trStructure.getSimilarity();

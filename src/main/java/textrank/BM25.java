@@ -7,12 +7,7 @@ import java.util.*;
  *
  * @author Soong
  */
-public class BM25 {
-
-    /**
-     * 句子核心词汇表
-     */
-    private Map<Integer, List<String>> purgedSentence;
+public class BM25 implements SentenceSimilarity{
 
     private static final double k1 = 2;
     private static final double b = 0.75;
@@ -22,10 +17,12 @@ public class BM25 {
      */
     private double[][] similarity;
 
-    public BM25(Map<Integer, List<String>> purgedSentence) {
-        this.purgedSentence = purgedSentence;
-        similarity = new double[purgedSentence.size()][purgedSentence.size()];
-        calculateSimilarity();
+    /**
+     * 句子核心词汇表
+     */
+    private Map<Integer, List<String>> purgedSentence;
+
+    public BM25() {
     }
 
     public static void main(String[] args) {
@@ -60,18 +57,17 @@ public class BM25 {
 //        purgedSentence.put(18, Collections.singletonList("通常"));
 //        purgedSentence.put(19, Arrays.asList("无限", "算法", "产生", "未", "确定", "定义", "终止", "条件"));
 
-        BM25 bm25 = new BM25(purgedSentence);
-        System.out.println(Arrays.deepToString(bm25.getSimilarity()));
-    }
-
-    public double[][] getSimilarity() {
-        return similarity;
+        BM25 bm25 = new BM25();
+        System.out.println(Arrays.deepToString(bm25.calculateSimilarity(purgedSentence)));
     }
 
     /**
      * 计算相似矩阵
      */
-    private void calculateSimilarity() {
+    @Override
+    public double[][] calculateSimilarity(Map<Integer, List<String>> purgedSentence) {
+        this.similarity = new double[purgedSentence.size()][purgedSentence.size()];;
+        this.purgedSentence = purgedSentence;
         for (int i = 0; i < similarity.length; i++) {
             for (int j = 0; j < similarity[i].length; j++) {
                 //句子i
@@ -83,6 +79,7 @@ public class BM25 {
                 similarity[i][j] = i == j ? 0 : score;
             }
         }
+        return similarity;
     }
 
     //BM25核心逻辑

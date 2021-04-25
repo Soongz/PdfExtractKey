@@ -21,7 +21,7 @@ public class TRStructure {
      */
     private static final List<String> speeches = Arrays.asList("n", "a", "vn", "d", "ns");
 
-    private static final char[] separator = new char[]{ '.', '?', '。', '？'};
+    private static final char[] separator = new char[]{'.', '?', '。', '？'};
 
     /**
      * 划分后的句子
@@ -40,7 +40,7 @@ public class TRStructure {
 
     private Map<Integer, List<Integer>> sentenceWindows;
 
-
+    private SentenceSimilarity sentenceSimilarity;
     /**
      * 分析的内容主体
      */
@@ -55,6 +55,13 @@ public class TRStructure {
      * 所有窗口
      */
     private Map<String, List<String>> windows;
+
+    public TRStructure(String content, Dimension dimension, SentenceSimilarity sentenceSimilarity) {
+        this.content = content;
+        this.dimension = dimension;
+        this.sentenceSimilarity = sentenceSimilarity;
+        initial();
+    }
 
     public TRStructure(String content, Dimension dimension) {
         this.content = content;
@@ -73,10 +80,13 @@ public class TRStructure {
             //4. 构造窗口
             splitSentence(separator);
             sentencePurging();
-            //计算相似矩阵， 又不同的解法。这里代码规范有点丑陋(应该设计接口，实现calculateSimilarity)，todo list item + 1
+            //计算相似矩阵， 又不同的解法
 //            calSimilarity();
-            final BM25 bm25 = new BM25(purgedSentence);
-            this.similarity = bm25.getSimilarity();
+//            final BM25 bm25 = new BM25(purgedSentence);
+//            this.similarity = bm25.getSimilarity();
+            if (sentenceSimilarity == null)
+                throw new RuntimeException("未设置句子相似度算法. sentenceSimilarity is equals to null");
+            this.similarity = sentenceSimilarity.calculateSimilarity(purgedSentence);
             buildSentenceWindow();
         }
     }
@@ -167,6 +177,7 @@ public class TRStructure {
     /**
      * 计算句子相似度
      * 此方法为论文中推荐的方法
+     * todo item +1: class implaments Similarity {}
      */
     public void calSimilarity() {
         similarity = new double[purgedSentence.size()][purgedSentence.size()];
