@@ -21,9 +21,10 @@ public class ParticipleTest {
     }
 
     public static void natureFilter() {
-        final Result origin = ToAnalysis.parse("小红是一个美丽的姑娘，中午的时候小红自由地穿梭在人群中间");
+//        final Result origin = ToAnalysis.parse("小红是一个美丽的姑娘，一条龙文章节那块");
 
-//        Result parse = DicAnalysis.parse("这是用户自定义词典增加新词的例子凹阳台");
+        //这个是走自定义词库的API
+        Result origin = DicAnalysis.parse("小红是一个美丽的姑娘，一条龙文章节那块");
         System.out.println(origin);
 
         List<String> handled = new ArrayList<>();

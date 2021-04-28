@@ -2,6 +2,7 @@ package textrank;
 
 import org.ansj.domain.Result;
 import org.ansj.domain.Term;
+import org.ansj.splitWord.analysis.DicAnalysis;
 import org.ansj.splitWord.analysis.ToAnalysis;
 import org.apache.commons.collections4.CollectionUtils;
 
@@ -110,7 +111,7 @@ public class TRStructure {
      * 分词预处理整个文章
      */
     public void participle() {
-        final Result origin = ToAnalysis.parse(this.content);
+        final Result origin = DicAnalysis.parse(this.content);
         useful_words = new LinkedList<>();
         for (Term term : origin.getTerms()) {
             if (containAtList(term.natrue().natureStr, speeches) && term.getRealName().length() > 1) {
@@ -163,7 +164,7 @@ public class TRStructure {
         purgedSentence = new HashMap<>();
         for (int i = 0; i < sentences.size(); i++) {
             String sentence = sentences.get(i);
-            final Result origin = ToAnalysis.parse(sentence);
+            final Result origin = DicAnalysis.parse(sentence);
             List<String> survior = new ArrayList<>();
             for (Term term : origin.getTerms()) {
                 if (containAtList(term.natrue().natureStr, speeches) && term.getRealName().length() > 1) {
