@@ -14,7 +14,7 @@ public class CosineSimilarity {
      * </p>
      */
     public static double calculate(double[] a, double[] b) throws Exception {
-        if (a.length != b.length) throw new Exception("2 vetor dimension are not equal");
+        if (a.length != b.length) throw new Exception("the dimension of given 2 vectors are not equal");
         double molecule = 0;
         double denominator;
 
