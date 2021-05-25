@@ -57,6 +57,25 @@ public class TextRank {
         return rankMap;
     }
 
+    // "a b c d e"
+    public String getTopNKeyWords(int top) {
+
+        List<Map.Entry<String, Double>> list = new ArrayList<>(rankMap.entrySet());
+        list.sort((o1, o2) -> o2.getValue().compareTo(o1.getValue()));
+        int i = 0;
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<String, Double> e : list) {
+            if (i++ >= top) break;
+            if (i == 1) {
+                result.append(e.getKey());
+                continue;
+            }
+            result.append(" ").append(e.getKey());
+        }
+
+        return result.toString();
+    }
+
     /**
      * 递归计算，论文建议 预计20~30次将会收敛. we trebling
      */
