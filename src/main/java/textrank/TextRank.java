@@ -1,9 +1,10 @@
 package textrank;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import utils.TextReader;
+
+import java.io.File;
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -19,6 +20,19 @@ public class TextRank {
     private static final int RECURSION_TIMES = 30;
 
     TRStructure trStructure;
+
+    private static List<String> stopWords = new CopyOnWriteArrayList<>();
+
+    private static final String STOPWPRDS_FILE_PATH = "stop_words.txt";
+
+    {
+        try {
+            String BAYONET_PATH = Objects.requireNonNull(this.getClass().getClassLoader().getResource(STOPWPRDS_FILE_PATH)).getPath();
+            stopWords = TextReader.read(new File(BAYONET_PATH));
+        } catch (Exception e) {
+            System.out.println("No stop-words lib has been found. Put it to resources/");
+        }
+    }
 
     /**
      * 参与排名的词
@@ -65,6 +79,9 @@ public class TextRank {
         int i = 0;
         StringBuilder result = new StringBuilder();
         for (Map.Entry<String, Double> e : list) {
+            if (stopWords.contains(e.getKey())) {
+                continue;
+            }
             if (i++ >= top) break;
             if (i == 1) {
                 result.append(e.getKey());

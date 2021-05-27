@@ -6,11 +6,10 @@ import textrank.KeywordsExtraction;
 import utils.DocumentExtractText;
 import utils.ItextpdfUtil;
 import utils.PDF2pngUtil;
-import utils.TextReader;
 
 import java.io.*;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -31,6 +30,8 @@ public class BatchExtractKeyWords {
     private final StringBuilder sqlScript = new StringBuilder();
     private final static String prefix = "UPDATE tb_document SET key_words = \"";
     private final static String middle = "\" WHERE ess_key = \"";
+    private final static String DOCUMENT_PATH = "D:\\data\\docShop\\518All\\";
+    private final static String RESULT_PATH_PREFIX = "D:\\tmp\\clearAfterUsed\\527\\";
 
     private final LongAdder counter = new LongAdder();
 
@@ -47,13 +48,24 @@ public class BatchExtractKeyWords {
 
     public static void main(String[] args) {
         BatchExtractKeyWords batchExtractKeyWords = new BatchExtractKeyWords();
-        batchExtractKeyWords.execute("D:\\data\\docShop\\518All\\");
+        try {
+            System.out.println("YOU GOT ONLY ONE SECOND TO RELEASE THIS PC, GOOD LUCK...");
+            Thread.sleep(60 * 1000);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        System.out.println("EXECUTE...");
+        batchExtractKeyWords.execute(DOCUMENT_PATH);
     }
 
     private void execute(String path) {
         File direct = new File(path);
 //        for (File file : Objects.requireNonNull(direct.listFiles())) {
-        final List<File> files = TextReader.readFor(new File("D:\\tmp\\clearAfterUsed\\524\\error_retry.txt"));
+        List<File> files;
+        final File[] allFile = direct.listFiles();
+        if (allFile == null) return;
+        files = Arrays.asList(allFile);
+//        files = TextReader.readFor(new File(RESULT_PATH_PREFIX+"error_retry.txt"));
         for (File file : files) {
             if (file.isDirectory()) continue;
             threadPool.execute(new Worker(file, false));
@@ -63,37 +75,40 @@ public class BatchExtractKeyWords {
         while (true) {
             if (threadPool.isTerminated() || files.size() == counter.intValue()) {
                 System.out.println("flush to dish first time");
-                flushStringTodisk(sqlScript.toString(), "D:\\tmp\\clearAfterUsed\\524\\keys.sql");
+                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys.sql");
                 System.out.println("第一遍结束，重试队列启动..." + retryList.size());
 
+
+                int retryListSize = retryList.size();
                 String filePath;
                 while ((filePath = retryList.poll()) != null) {
                     retryThreadPool.execute(new Worker(new File(filePath), true));
                 }
                 retryThreadPool.shutdown();
-                while (!threadPool.isTerminated()) {
+                while (!threadPool.isTerminated() || (files.size() + retryListSize) == counter.intValue()) {
                     try {
                         Thread.sleep(5000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
-                flushStringTodisk(sqlScript.toString(), "D:\\tmp\\clearAfterUsed\\524\\keys_after_retry.sql");
+                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys_after_retry.sql");
 
                 System.out.println("重试队列完毕...查看失败队列 " + errorList.size());
 
                 System.out.println(errorList);
+                flushStringTodisk(errorList.toString(), RESULT_PATH_PREFIX + "errorList.txt");
 
                 break;
-            } else {
-                try {
-                    System.out.println("ready to flush temp result into disk...");
-                    flushStringTodisk(sqlScript.toString(), "D:\\tmp\\clearAfterUsed\\524\\keys_log\\keys" + counter.intValue() + ".sql");
-                    Thread.sleep(60000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
             }
+            try {
+                System.out.println("ready to flush temp result into disk...");
+                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys_log\\keys" + counter.intValue() + ".sql");
+                Thread.sleep(60000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
         }
     }
 
@@ -136,6 +151,8 @@ public class BatchExtractKeyWords {
                     }
                 });
                 future.get(180, TimeUnit.SECONDS);
+
+                executorService.shutdown();
             } catch (TimeoutException e) {
                 e.printStackTrace();
                 errorList.offer(file.getPath());

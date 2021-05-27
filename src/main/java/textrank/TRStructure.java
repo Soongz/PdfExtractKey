@@ -3,7 +3,6 @@ package textrank;
 import org.ansj.domain.Result;
 import org.ansj.domain.Term;
 import org.ansj.splitWord.analysis.DicAnalysis;
-import org.ansj.splitWord.analysis.ToAnalysis;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.*;
@@ -18,9 +17,10 @@ public class TRStructure {
     private static final Integer WINDOW_SIZE = 5;
     /**
      * 有用的词汇
-     * 名词、动词、形容词、副词
+     * 527 去掉副词
+     * 名词、动词、形容词、地名、人名、机构名
      */
-    private static final List<String> speeches = Arrays.asList("n", "a", "vn", "d", "ns");
+    private static final List<String> speeches = Arrays.asList("n", "a", "vn", "ns", "nr", "nt");
 
     private static final char[] separator = new char[]{'.', '?', '。', '？'};
 
