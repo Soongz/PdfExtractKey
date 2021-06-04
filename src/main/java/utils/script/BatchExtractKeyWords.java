@@ -27,7 +27,7 @@ public class BatchExtractKeyWords {
 
     private final ThreadPoolExecutor threadPool;
     private final ThreadPoolExecutor retryThreadPool;
-    private final StringBuilder sqlScript = new StringBuilder();
+    private final StringBuffer sqlScript = new StringBuffer();
     private final static String prefix = "UPDATE tb_document SET key_words = \"";
     private final static String middle = "\" WHERE ess_key = \"";
     private final static String DOCUMENT_PATH = "D:\\data\\docShop\\518All\\";
