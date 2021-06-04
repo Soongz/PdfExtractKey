@@ -24,7 +24,8 @@ public class ParticipleTest {
 //        final Result origin = ToAnalysis.parse("小红是一个美丽的姑娘，一条龙文章节那块");
 
         //这个是走自定义词库的API
-        Result origin = DicAnalysis.parse("小红是一个美丽的姑娘，一条龙文章节那块");
+        DicLibrary.insert(DicLibrary.DEFAULT, "气象路831号", "n",DicLibrary.DEFAULT_FREQ);
+        Result origin = DicAnalysis.parse("小红是一个美丽的姑娘住在气象路831号，一条龙文章节那块");
         System.out.println(origin);
 
         List<String> handled = new ArrayList<>();
