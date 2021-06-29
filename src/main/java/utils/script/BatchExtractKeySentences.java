@@ -2,6 +2,7 @@ package utils.script;
 
 import io.netty.util.internal.StringUtil;
 import ocr.iflytek.WebOCR;
+import textrank.KeySentenceExtraction;
 import textrank.KeywordsExtraction;
 import utils.DocumentExtractText;
 import utils.ItextpdfUtil;
@@ -15,32 +16,28 @@ import java.util.concurrent.atomic.LongAdder;
 
 
 /**
- * Description: 批量抽取关键词
- * steps:
- * 1. 遍历文件, 读取文件内容
- * 2. 调用关键词提取类 拼接关键词top20  keyWords = "k0 k1 k2 k3 k4... k19"
- * 3. 拼接sql update tb_document set key_words = #{keyWords} where ess_key = #{fileName}
+ * Description: 批量抽取关键句
  *
  * @author Soong
  */
-public class BatchExtractKeyWords {
+public class BatchExtractKeySentences {
 
     private final ThreadPoolExecutor threadPool;
     private final ThreadPoolExecutor retryThreadPool;
     private final StringBuffer sqlScript = new StringBuffer();
     private final static String prefix = "UPDATE tb_document SET key_words = \"";
     private final static String middle = "\" WHERE ess_key = \"";
-    private final static String DOCUMENT_PATH = "D:\\data\\docShop\\622All\\";
-    private final static String RESULT_PATH_PREFIX = "D:\\tmp\\clearAfterUsed\\622\\";
+    private final static String DOCUMENT_PATH = "D:\\data\\docShop\\622batchUpload\\abstract_test\\";
+    private final static String RESULT_PATH_PREFIX = "D:\\tmp\\clearAfterUsed\\623\\";
 
-    private final static Integer TIMEOUT_THRESHOLD = 60 * 60 * 2;
+    private final static Integer TIMEOUT_THRESHOLD = 60 * 60;
     private final LongAdder counter = new LongAdder();
 
     private final ConcurrentLinkedQueue<String> retryList;
 
     private final ConcurrentLinkedQueue<String> errorList;
 
-    public BatchExtractKeyWords() {
+    public BatchExtractKeySentences() {
         this.threadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(50000));
         this.retryThreadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(50000));
         retryList = new ConcurrentLinkedQueue<>();
@@ -48,7 +45,7 @@ public class BatchExtractKeyWords {
     }
 
     public static void main(String[] args) {
-        BatchExtractKeyWords batchExtractKeyWords = new BatchExtractKeyWords();
+        BatchExtractKeySentences batchExtractKeyWords = new BatchExtractKeySentences();
         try {
             System.out.println("YOU GOT ONLY 10 SECONDS TO RELEASE THIS PC, GOOD LUCK...");
             Thread.sleep(10 * 1000);
@@ -76,7 +73,7 @@ public class BatchExtractKeyWords {
         while (true) {
             if (threadPool.isTerminated() || files.size() == counter.intValue()) {
                 System.out.println("flush to dish first time");
-                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys.sql");
+                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys.csv");
                 System.out.println("第一遍结束，重试队列启动..." + retryList.size());
 
 
@@ -93,7 +90,7 @@ public class BatchExtractKeyWords {
                         e.printStackTrace();
                     }
                 }
-                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys_after_retry.sql");
+                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys_after_retry.csv");
 
                 System.out.println("重试队列完毕...查看失败队列 " + errorList.size());
 
@@ -104,7 +101,7 @@ public class BatchExtractKeyWords {
             }
             try {
                 System.out.println("ready to flush temp result into disk...");
-                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys_log\\keys" + counter.intValue() + ".sql");
+                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys_log\\keys" + counter.intValue() + ".csv");
                 Thread.sleep(60000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -139,9 +136,16 @@ public class BatchExtractKeyWords {
                         if (content != null) {
                             content = content.trim().replace(" ", "");
                         }
-                        final String nkeys = KeywordsExtraction.getNkeys(content, 20);
+                        final List<String> topNSentences = KeySentenceExtraction.getTopNSentences(content, 5);
 
-                        sqlScript.append(prefix).append(nkeys).append(middle).append(file.getName()).append("\";\n");
+                        sqlScript.append(file.getName());
+                        if (topNSentences != null && topNSentences.size() > 0) {
+                            topNSentences.forEach(e -> {
+                                sqlScript.append(",").append(e);
+                            });
+                        }
+                        sqlScript.append("\n");
+
                     } catch (Exception e) {
                         e.printStackTrace();
                         if (isRetry) {

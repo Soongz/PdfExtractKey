@@ -6,6 +6,7 @@ import org.redisson.api.RSemaphore;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
@@ -46,6 +47,13 @@ public class RedissonTest {
             e.printStackTrace();
         }
         fairLock.unlock();
+    }
+
+    public static void multiLock(RedissonClient revision) {
+        RLock lock1 = revision.getLock("anyLock1");
+        RLock lock2 = revision.getLock("anyLock2");
+        RLock lock3 = revision.getLock("anyLock3");
+        final RLock multilock = revision.getMultiLock(lock1, lock2, lock3);
     }
 
     public static void semaphoreLock(RedissonClient revision) throws Exception {

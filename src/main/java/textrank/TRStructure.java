@@ -6,6 +6,7 @@ import org.ansj.splitWord.analysis.DicAnalysis;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Description: 构造TextRank java数据结构
@@ -20,9 +21,9 @@ public class TRStructure {
      * 527 去掉副词
      * 名词、动词、形容词、地名、人名、机构名
      */
-    private static final List<String> speeches = Arrays.asList("n", "a", "vn", "ns", "nr", "nt");
+    private static final List<String> speeches = Arrays.asList("n", "a", "vn", "ns", "nr", "nt", "en");
 
-    private static final char[] separator = new char[]{'.', '?', '。', '？'};
+    private static final char[] separator = new char[]{'.', '?', '。', '？', '\n'};
 
     /**
      * 划分后的句子
@@ -32,14 +33,14 @@ public class TRStructure {
     /**
      * 句子核心词汇表
      */
-    private Map<Integer, List<String>> purgedSentence;
+    private ConcurrentHashMap<Integer, List<String>> purgedSentence;
 
     /**
      * 相似矩阵
      */
     private double[][] similarity;
 
-    private Map<Integer, List<Integer>> sentenceWindows;
+    private ConcurrentHashMap<Integer, List<Integer>> sentenceWindows;
 
     private SentenceSimilarity sentenceSimilarity;
     /**
@@ -55,7 +56,7 @@ public class TRStructure {
     /**
      * 所有窗口
      */
-    private Map<String, List<String>> windows;
+    private ConcurrentHashMap<String, List<String>> windows;
 
     public TRStructure(String content, Dimension dimension, SentenceSimilarity sentenceSimilarity) {
         this.content = content;
@@ -96,7 +97,7 @@ public class TRStructure {
      * 构造句子窗口（有相似度的才会是邻居）
      */
     private void buildSentenceWindow() {
-        sentenceWindows = new HashMap<>();
+        sentenceWindows = new ConcurrentHashMap<>();
         for (int i = 0; i < similarity.length; i++) {
             List<Integer> adjNum = new ArrayList<>();
             for (int j = 0; j < similarity.length; j++) {
@@ -113,18 +114,21 @@ public class TRStructure {
     public void participle() {
         final Result origin = DicAnalysis.parse(this.content);
         useful_words = new LinkedList<>();
+        final long start = System.currentTimeMillis();
         for (Term term : origin.getTerms()) {
             if (containAtList(term.natrue().natureStr, speeches) && term.getRealName().length() > 1) {
                 useful_words.add(term.getRealName());
             }
         }
+        System.out.println("分词耗时: " + (System.currentTimeMillis() - start));
     }
 
     /**
      * 构建关键词窗口
      */
     public void buildWindow() {
-        windows = new HashMap<>(useful_words.size());
+        final long start = System.currentTimeMillis();
+        windows = new ConcurrentHashMap<>(useful_words.size());
         for (int i = 0; i < useful_words.size(); i++) {
             List<String> adjacent = new ArrayList<>(WINDOW_SIZE * 2);
             for (int j = i - WINDOW_SIZE; j < i + WINDOW_SIZE; j++) {
@@ -136,6 +140,7 @@ public class TRStructure {
             }
             this.windows.put(useful_words.get(i), adjacent);
         }
+        System.out.println("build window耗时: " + (System.currentTimeMillis() - start));
     }
 
     /**
@@ -161,7 +166,7 @@ public class TRStructure {
      * 净化句子，刪除停用词，无用的词性
      */
     public void sentencePurging() {
-        purgedSentence = new HashMap<>();
+        purgedSentence = new ConcurrentHashMap<>();
         for (int i = 0; i < sentences.size(); i++) {
             String sentence = sentences.get(i);
             final Result origin = DicAnalysis.parse(sentence);
@@ -241,7 +246,7 @@ public class TRStructure {
         return useful_words;
     }
 
-    public Map<String, List<String>> getWindows() {
+    public ConcurrentHashMap<String, List<String>> getWindows() {
         return windows;
     }
 
@@ -249,7 +254,7 @@ public class TRStructure {
         return sentences;
     }
 
-    public Map<Integer, List<String>> getPurgedSentence() {
+    public ConcurrentHashMap<Integer, List<String>> getPurgedSentence() {
         return purgedSentence;
     }
 
@@ -257,7 +262,7 @@ public class TRStructure {
         return similarity;
     }
 
-    public Map<Integer, List<Integer>> getSentenceWindows() {
+    public ConcurrentHashMap<Integer, List<Integer>> getSentenceWindows() {
         return sentenceWindows;
     }
 

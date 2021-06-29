@@ -66,8 +66,21 @@ public class SentenceRank {
 
         for (int i = 0; i < list.size(); i++) {
             Map.Entry<Integer, Double> e = list.get(i);
-            System.out.println(sentences.get(e.getKey()) + ":" + e.getValue());
+//            System.out.println(sentences.get(e.getKey()) + ":" + e.getValue());
             result.put(sentences.get(e.getKey()), e.getValue());
+        }
+        return result;
+    }
+
+    /**
+     * 获取前 topN 个句子
+     */
+    public List<String> getTopN(int topN) {
+        List<Map.Entry<Integer, Double>> list = new ArrayList<>(rankMap.entrySet());
+        list.sort((o1, o2) -> o2.getValue().compareTo(o1.getValue()));
+        List<String> result = new ArrayList<>();
+        for (int i = 0; i < topN; i++) {
+            result.add(sentences.get(list.get(i).getKey()));
         }
         return result;
     }

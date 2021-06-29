@@ -2,7 +2,6 @@ package textrank;
 
 import utils.script.BatchExtractKeyWords;
 
-import java.util.Map;
 import java.util.TreeMap;
 
 /**
@@ -25,9 +24,12 @@ public class KeywordsExtraction {
     }
 
     private void temp() throws Exception {
-        String path = "D:\\data\\docShop\\518All\\W0134229B275AA1B168CA60E3B1C80BC6.pdf";
-        final String content = BatchExtractKeyWords.fileExtractStringCache(path, "W000B7EB41D423B238F14D3437DC615E9.pdf").trim().replace(" ", "");
+//        String path = "D:\\data\\docShop\\518All\\W0134229B275AA1B168CA60E3B1C80BC6.pdf";
+        String path = "D:\\data\\docShop\\618Retry\\WD79CFD6809C621E15C948A223FAF7849.pdf";
+        System.out.println(path);
+        final String content = BatchExtractKeyWords.fileExtractStringCache(path, "WD79CFD6809C621E15C948A223FAF7849.pdf");
         System.out.println(content);
+        System.out.println(content.length());
         final String nkeys = getNkeys(content, 20);
         System.out.println(nkeys);
     }
@@ -39,7 +41,9 @@ public class KeywordsExtraction {
     }
 
     public static String getNkeys(String content, int topN) {
+        final long start = System.currentTimeMillis();
         final TextRank textRank = new TextRank(content, TRStructure.Dimension.WORD);
+        System.out.println("new TextRank 耗时: " + (System.currentTimeMillis() - start));
         textRank.rankRecursion();
         return textRank.getTopNKeyWords(topN);
     }

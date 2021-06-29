@@ -2,14 +2,11 @@ package utils.script;
 
 import io.netty.util.internal.StringUtil;
 import ocr.iflytek.WebOCR;
-import textrank.KeywordsExtraction;
-import utils.DocumentExtractText;
-import utils.ItextpdfUtil;
-import utils.PDF2pngUtil;
+import org.apache.commons.lang.StringUtils;
+import utils.*;
 
 import java.io.*;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -23,50 +20,69 @@ import java.util.concurrent.atomic.LongAdder;
  *
  * @author Soong
  */
-public class BatchExtractKeyWords {
+public class BatchExtractDate {
 
     private final ThreadPoolExecutor threadPool;
     private final ThreadPoolExecutor retryThreadPool;
     private final StringBuffer sqlScript = new StringBuffer();
     private final static String prefix = "UPDATE tb_document SET key_words = \"";
     private final static String middle = "\" WHERE ess_key = \"";
-    private final static String DOCUMENT_PATH = "D:\\data\\docShop\\622All\\";
-    private final static String RESULT_PATH_PREFIX = "D:\\tmp\\clearAfterUsed\\622\\";
+    private final static String DOCUMENT_PATH = "D:\\data\\docShop\\622batchUpload\\abstract_test\\";
+    private final static String RESULT_PATH_PREFIX = "D:\\tmp\\clearAfterUsed\\629_2\\";
 
-    private final static Integer TIMEOUT_THRESHOLD = 60 * 60 * 2;
+    private final static Integer TIMEOUT_THRESHOLD = 30;
     private final LongAdder counter = new LongAdder();
 
     private final ConcurrentLinkedQueue<String> retryList;
 
     private final ConcurrentLinkedQueue<String> errorList;
 
-    public BatchExtractKeyWords() {
-        this.threadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(50000));
-        this.retryThreadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(50000));
+
+    public BatchExtractDate() {
+        this.threadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(100000));
+        this.retryThreadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(100000));
         retryList = new ConcurrentLinkedQueue<>();
         errorList = new ConcurrentLinkedQueue<>();
     }
 
     public static void main(String[] args) {
-        BatchExtractKeyWords batchExtractKeyWords = new BatchExtractKeyWords();
-        try {
-            System.out.println("YOU GOT ONLY 10 SECONDS TO RELEASE THIS PC, GOOD LUCK...");
-            Thread.sleep(10 * 1000);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        BatchExtractDate batchExtractKeyWords = new BatchExtractDate();
+
         System.out.println("EXECUTE...");
-        batchExtractKeyWords.execute(DOCUMENT_PATH);
+//        batchExtractKeyWords.execute(DOCUMENT_PATH);
+        batchExtractKeyWords.executeWithTitle();
+    }
+
+    private void executeWithTitle() {
+        HashMap<String, String> titles = TextReader.getTitlesAndEssKey("D:\\tmp\\clearAfterUsed\\628\\20210628-1607.csv");
+        for (Map.Entry<String, String> entry : titles.entrySet()) {
+            threadPool.execute(new TitleWorker(entry.getKey(), entry.getValue()));
+        }
+        threadPool.shutdown();
+
+        while (true) {
+            if (threadPool.isTerminated() || titles.size() == counter.intValue()) {
+                System.out.println("flush to dish first time");
+                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys.csv");
+                flushStringTodisk(errorList.toString(), RESULT_PATH_PREFIX + "errorList.txt");
+                break;
+            }
+            try {
+                System.out.println("ready to flush temp result into disk...");
+                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys_log\\keys" + counter.intValue() + ".csv");
+                Thread.sleep(15000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void execute(String path) {
         File direct = new File(path);
-//        for (File file : Objects.requireNonNull(direct.listFiles())) {
         List<File> files;
         final File[] allFile = direct.listFiles();
         if (allFile == null) return;
         files = Arrays.asList(allFile);
-//        files = TextReader.readFor(new File(RESULT_PATH_PREFIX+"error_retry.txt"));
         for (File file : files) {
             if (file.isDirectory()) continue;
             threadPool.execute(new Worker(file, false));
@@ -76,40 +92,83 @@ public class BatchExtractKeyWords {
         while (true) {
             if (threadPool.isTerminated() || files.size() == counter.intValue()) {
                 System.out.println("flush to dish first time");
-                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys.sql");
-                System.out.println("第一遍结束，重试队列启动..." + retryList.size());
-
-
-                int retryListSize = retryList.size();
-                String filePath;
-                while ((filePath = retryList.poll()) != null) {
-                    retryThreadPool.execute(new Worker(new File(filePath), true));
-                }
-                retryThreadPool.shutdown();
-                while (!retryThreadPool.isTerminated() || (files.size() + retryListSize) == counter.intValue()) {
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys_after_retry.sql");
-
-                System.out.println("重试队列完毕...查看失败队列 " + errorList.size());
-
-                System.out.println(errorList);
-                flushStringTodisk(errorList.toString(), RESULT_PATH_PREFIX + "errorList.txt");
-
+                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys.csv");
                 break;
             }
             try {
                 System.out.println("ready to flush temp result into disk...");
-                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys_log\\keys" + counter.intValue() + ".sql");
-                Thread.sleep(60000);
+                flushStringTodisk(sqlScript.toString(), RESULT_PATH_PREFIX + "keys_log\\keys" + counter.intValue() + ".csv");
+                Thread.sleep(5000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
+        }
+    }
+
+    //根据标题提取日期
+    class TitleWorker extends Thread {
+        private final String essKey;
+        private final String title;
+        private static final String PATH_PREFIX_1 = "D:\\data\\docShop\\518All\\";
+        private static final String PATH_PREFIX_2 = "D:\\data\\docShop\\618All\\";
+
+        private final ExecutorService executorService;
+
+        public TitleWorker(String essKey, String title) {
+            this.essKey = essKey;
+            this.title = title;
+            executorService = Executors.newFixedThreadPool(1);
+        }
+
+        @Override
+        public void run() {
+            try {
+                counter.increment();
+                System.out.println("正在执行第" + counter.intValue() + "个任务");
+                Set<String> dateSet = DateMatcher.matching(title);
+                String dateString;
+                if (dateSet.size() != 0) {
+                    dateString = StringUtils.join(dateSet.toArray(), ",");
+                } else {
+                    final Future<String> future = executorService.submit(() -> getDates(essKey));
+                    dateString = future.get(TIMEOUT_THRESHOLD, TimeUnit.SECONDS);
+                    executorService.shutdown();
+                }
+                synchronized (sqlScript) {
+                    sqlScript.append(title).append(",").append(essKey).append(",").append(dateString == null ? "" : dateString).append("\n");
+                }
+            } catch (TimeoutException e) {
+                e.printStackTrace();
+                System.out.println("超时跳过");
+                errorList.offer(title);
+            } catch (Exception e) {
+                e.printStackTrace();
+                errorList.offer(title);
+                System.out.println("未知异常 跳过");
+            }
+        }
+
+        private String getDates(String fileName) throws Exception {
+            String fileName2 = fileName.replaceAll("\"", "");
+            String path1 = PATH_PREFIX_1 + fileName2;
+            File file = null;
+
+            file = new File(path1);
+            if (!file.exists()) {
+                file = new File(PATH_PREFIX_2 + fileName2);
+            }
+            if (file.exists()) {
+                return getDatesFromContent(file);
+            }
+            return null;
+        }
+
+        private String getDatesFromContent(File file) throws Exception {
+            if (file == null) return null;
+            String content = fileExtractStringCache(file.getPath(), file.getName());
+            Set<String> dateSet = DateMatcher.matching(content);
+            return StringUtils.join(dateSet.toArray(), ",");
         }
     }
 
@@ -136,12 +195,10 @@ public class BatchExtractKeyWords {
                         counter.increment();
                         System.out.println("正在执行第" + counter.intValue() + "个任务");
                         String content = fileExtractStringCache(file.getPath(), file.getName());
-                        if (content != null) {
-                            content = content.trim().replace(" ", "");
-                        }
-                        final String nkeys = KeywordsExtraction.getNkeys(content, 20);
-
-                        sqlScript.append(prefix).append(nkeys).append(middle).append(file.getName()).append("\";\n");
+                        Set<String> date = DateMatcher.matching(content);
+                        if (date == null) return;
+                        System.out.println(file.getName() + ":" + date.toString());
+                        sqlScript.append(file.getName()).append(",").append(date.toString()).append("\n");
                     } catch (Exception e) {
                         e.printStackTrace();
                         if (isRetry) {

@@ -8,6 +8,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * Description: tess4j
@@ -22,6 +23,8 @@ public class BatchDownload {
 
     private final ConcurrentLinkedQueue<String> retryQueue = new ConcurrentLinkedQueue<>();
     private final ConcurrentLinkedQueue<String> errorQueue = new ConcurrentLinkedQueue<>();
+
+    private final LongAdder counter = new LongAdder();
 
 
     public BatchDownload() {
@@ -39,7 +42,7 @@ public class BatchDownload {
     }
 
     public void execute() throws Exception {
-        readUrl(new File("D:\\retry.txt"));
+        readUrl(new File("D:\\tmp\\clearAfterUsed\\629_2\\629downloadUtls.txt"));
         System.out.println("准备下载. size:" + urlQueue.size());
         download(urlQueue, false);
 
@@ -54,9 +57,23 @@ public class BatchDownload {
 
     private void download(ConcurrentLinkedQueue<String> queue, boolean isRetry) {
         String url;
+        final int jobCount = queue.size();
         while ((url = queue.poll()) != null) {
             final DownloadThread downloadThread = new DownloadThread(url, isRetry);
             poolExecutor.execute(downloadThread);
+        }
+
+        while(true) {
+            if (poolExecutor.isTerminated() || counter.intValue() == jobCount) {
+                System.out.println("首次运行结束...打印下载失败url");
+                System.out.println(retryQueue);
+                break;
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -78,7 +95,7 @@ public class BatchDownload {
 
     class DownloadThread extends Thread {
         private final String url;
-        private static final String DOWNLOAD_PATH = "D:\\data\\docShop\\518All\\";
+        private static final String DOWNLOAD_PATH = "D:\\data\\docShop\\618All\\";
         private final boolean isRetry;
 
         public DownloadThread(String url, boolean isRetry) {
@@ -89,6 +106,9 @@ public class BatchDownload {
         @Override
         public void run() {
             try {
+                counter.increment();
+                System.out.println("正在执行第" + counter.intValue() + "个任务");
+
                 Downloader.downLoadFromUrl(url, spiltFileNameFromUrl(url), DOWNLOAD_PATH);
             } catch (Exception e) {
                 e.printStackTrace();
