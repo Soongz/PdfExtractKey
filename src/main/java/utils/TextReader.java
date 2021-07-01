@@ -34,7 +34,7 @@ public class TextReader {
 
     public static void main(String[] args) {
 //        getTitlesAndEssKey("D:\\tmp\\clearAfterUsed\\628\\20210628-1607.csv");
-        getTitles("D:\\\\tmp\\\\clearAfterUsed\\\\628\\\\20210628-1607.csv");
+        getTitles("D:\\tmp\\clearAfterUsed\\628\\20210628-1607.csv");
     }
 
 
@@ -116,7 +116,7 @@ public class TextReader {
         for (String s : downloadSet) {
             sb.append(s).append("\n");
         }
-        flushStringTodisk(sb.toString(), "D:\\tmp\\clearAfterUsed\\629_2\\629downloadUtls.txt");
+//        flushStringTodisk(sb.toString(), "D:\\tmp\\clearAfterUsed\\629_2\\629downloadUtls.txt");
     }
 
 

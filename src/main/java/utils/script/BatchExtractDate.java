@@ -28,7 +28,7 @@ public class BatchExtractDate {
     private final static String prefix = "UPDATE tb_document SET key_words = \"";
     private final static String middle = "\" WHERE ess_key = \"";
     private final static String DOCUMENT_PATH = "D:\\data\\docShop\\622batchUpload\\abstract_test\\";
-    private final static String RESULT_PATH_PREFIX = "D:\\tmp\\clearAfterUsed\\629_2\\";
+    private final static String RESULT_PATH_PREFIX = "D:\\tmp\\clearAfterUsed\\630\\63002\\";
 
     private final static Integer TIMEOUT_THRESHOLD = 30;
     private final LongAdder counter = new LongAdder();
@@ -125,18 +125,23 @@ public class BatchExtractDate {
         public void run() {
             try {
                 counter.increment();
-                System.out.println("正在执行第" + counter.intValue() + "个任务");
-                Set<String> dateSet = DateMatcher.matching(title);
+                System.out.println(Thread.currentThread().getName() + "正在执行第" + counter.intValue() + "个任务");
+                final DateMatcherResult matching = DateMatcher.matching(title);
+                Set<String> dateSet = matching.getResult();
                 String dateString;
+                String type;
                 if (dateSet.size() != 0) {
+                    type = "来自标题";
                     dateString = StringUtils.join(dateSet.toArray(), ",");
                 } else {
-                    final Future<String> future = executorService.submit(() -> getDates(essKey));
-                    dateString = future.get(TIMEOUT_THRESHOLD, TimeUnit.SECONDS);
+                    final Future<DateMatcherResult> future = executorService.submit(() -> getDates(essKey));
+                    DateMatcherResult dateMatcherResult = future.get(TIMEOUT_THRESHOLD, TimeUnit.SECONDS);
+                    type = dateMatcherResult.getType();
+                    dateString = StringUtils.join(dateMatcherResult.getResult(), ",");
                     executorService.shutdown();
                 }
                 synchronized (sqlScript) {
-                    sqlScript.append(title).append(",").append(essKey).append(",").append(dateString == null ? "" : dateString).append("\n");
+                    sqlScript.append(title).append(",").append(essKey).append(",").append(type).append(",").append(dateString == null ? "" : dateString).append("\n");
                 }
             } catch (TimeoutException e) {
                 e.printStackTrace();
@@ -149,7 +154,7 @@ public class BatchExtractDate {
             }
         }
 
-        private String getDates(String fileName) throws Exception {
+        private DateMatcherResult getDates(String fileName) throws Exception {
             String fileName2 = fileName.replaceAll("\"", "");
             String path1 = PATH_PREFIX_1 + fileName2;
             File file = null;
@@ -164,12 +169,14 @@ public class BatchExtractDate {
             return null;
         }
 
-        private String getDatesFromContent(File file) throws Exception {
+        private DateMatcherResult getDatesFromContent(File file) throws Exception {
             if (file == null) return null;
             String content = fileExtractStringCache(file.getPath(), file.getName());
-            Set<String> dateSet = DateMatcher.matching(content);
-            return StringUtils.join(dateSet.toArray(), ",");
+//            Set<String> dateSet = DateMatcher.matching(content).getResult();
+//            return StringUtils.join(dateSet.toArray(), ",");
+            return DateMatcher.matching(content);
         }
+
     }
 
     /**
@@ -193,9 +200,9 @@ public class BatchExtractDate {
                 final Future<?> future = executorService.submit(() -> {
                     try {
                         counter.increment();
-                        System.out.println("正在执行第" + counter.intValue() + "个任务");
+                        System.out.println(Thread.currentThread().getName() + "正在执行第" + counter.intValue() + "个任务");
                         String content = fileExtractStringCache(file.getPath(), file.getName());
-                        Set<String> date = DateMatcher.matching(content);
+                        Set<String> date = DateMatcher.matching(content).getResult();
                         if (date == null) return;
                         System.out.println(file.getName() + ":" + date.toString());
                         sqlScript.append(file.getName()).append(",").append(date.toString()).append("\n");
