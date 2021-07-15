@@ -20,7 +20,7 @@ public class TextRank {
     private static final double k1 = 2d;
     private static final double d = 0.85d;
 
-    private static final int RECURSION_TIMES = 30;
+    private static final int RECURSION_TIMES = 10;
 
     TRStructure trStructure;
 
@@ -105,9 +105,9 @@ public class TextRank {
             allTask.add(key);
         });
 
-        final long start = System.currentTimeMillis();
+//        final long start = System.currentTimeMillis();
         for (int i = 0; i < RECURSION_TIMES; i++) {
-            final long eachStart = System.currentTimeMillis();
+//            final long eachStart = System.currentTimeMillis();
             final RankTask rankTask = new RankTask(allTask, 0, allTask.size());
             ForkJoinPool.commonPool().invoke(rankTask);
 
@@ -121,9 +121,7 @@ public class TextRank {
 //                newScore = (1 - d) + d * adjRef;
 //                rankMap.put(key, newScore);
 //            });
-            System.out.println("单次提取耗时: " + (System.currentTimeMillis() - eachStart));
         }
-        System.out.println("提取耗时: " + (System.currentTimeMillis() - start));
     }
 
     // d * ?, this is ?
@@ -189,7 +187,7 @@ public class TextRank {
                 return;
             }
             int middle = (end + start) / 2;
-            System.out.println(String.format("split %d~%d ==> %d~%d, %d~%d", start, end, start, middle, middle, end));
+//            System.out.println(String.format("split %d~%d ==> %d~%d, %d~%d", start, end, start, middle, middle, end));
             RankTask subtask1 = new RankTask(this.tasks, start, middle);
             RankTask subtask2 = new RankTask(this.tasks, middle, end);
             invokeAll(subtask1, subtask2);

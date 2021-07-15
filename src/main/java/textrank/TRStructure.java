@@ -21,7 +21,7 @@ public class TRStructure {
      * 527 去掉副词
      * 名词、动词、形容词、地名、人名、机构名
      */
-    private static final List<String> speeches = Arrays.asList("n", "a", "vn", "ns", "nr", "nt", "en");
+    private static final List<String> speeches = Arrays.asList("n", "a", "ns", "nr", "nt", "en");
 
     private static final char[] separator = new char[]{'.', '?', '。', '？', '\n'};
 
@@ -140,7 +140,7 @@ public class TRStructure {
             }
             this.windows.put(useful_words.get(i), adjacent);
         }
-        System.out.println("build window耗时: " + (System.currentTimeMillis() - start));
+//        System.out.println("build window耗时: " + (System.currentTimeMillis() - start));
     }
 
     /**

@@ -28,7 +28,7 @@ public class BatchExtractDate {
     private final static String prefix = "UPDATE tb_document SET key_words = \"";
     private final static String middle = "\" WHERE ess_key = \"";
     private final static String DOCUMENT_PATH = "D:\\data\\docShop\\622batchUpload\\abstract_test\\";
-    private final static String RESULT_PATH_PREFIX = "D:\\tmp\\clearAfterUsed\\630\\63002\\";
+    private final static String RESULT_PATH_PREFIX = "D:\\tmp\\clearAfterUsed\\702\\";
 
     private final static Integer TIMEOUT_THRESHOLD = 30;
     private final LongAdder counter = new LongAdder();
@@ -39,7 +39,7 @@ public class BatchExtractDate {
 
 
     public BatchExtractDate() {
-        this.threadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(100000));
+        this.threadPool = new ThreadPoolExecutor(1, 1, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(100000));
         this.retryThreadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(100000));
         retryList = new ConcurrentLinkedQueue<>();
         errorList = new ConcurrentLinkedQueue<>();
@@ -127,10 +127,10 @@ public class BatchExtractDate {
                 counter.increment();
                 System.out.println(Thread.currentThread().getName() + "正在执行第" + counter.intValue() + "个任务");
                 final DateMatcherResult matching = DateMatcher.matching(title);
-                Set<String> dateSet = matching.getResult();
+                LinkedHashSet<String> dateSet = matching.getResult();
                 String dateString;
                 String type;
-                if (dateSet.size() != 0) {
+                if (dateSet!=null && dateSet.size() != 0) {
                     type = "来自标题";
                     dateString = StringUtils.join(dateSet.toArray(), ",");
                 } else {
@@ -247,7 +247,7 @@ public class BatchExtractDate {
                     return result;
                 }
                 //由图片组成的pdf， 先转图片
-                PDF2pngUtil.pdf2png(filePath);
+//                PDF2pngUtil.pdf2png(filePath);
                 StringBuilder partialResult = new StringBuilder();
                 File root = new File(filePath + "dir");
                 //遍历图片所在的路径，依次调用ocr接口，并将结果拼接
@@ -260,7 +260,7 @@ public class BatchExtractDate {
                             partialResult.append(WebOCR.execute(file.getPath())); //科大讯飞OCR
 //                            partialResult.append(AliOCR.execute(file.getPath())); //阿里OCR
                         } catch (Exception e) {
-                            System.out.println("counting error, skip...");
+                            System.out.println("a OCR error, skip and continue to append next page content...");
                         }
                     }
                 }

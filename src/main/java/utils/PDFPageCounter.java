@@ -65,7 +65,7 @@ public class PDFPageCounter {
                         System.out.println("正在处理第" + i + "个文件");
                         counter(file.getPath());
                     } catch (Exception e) {
-                        System.out.println("counting error, skip...");
+                        System.out.println("page counter error, skip..." + file.getName());
                     }
                 }
             }

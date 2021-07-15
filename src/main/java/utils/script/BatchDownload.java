@@ -42,7 +42,7 @@ public class BatchDownload {
     }
 
     public void execute() throws Exception {
-        readUrl(new File("D:\\tmp\\clearAfterUsed\\629_2\\629downloadUtls.txt"));
+        readUrl(new File("D:\\tmp\\clearAfterUsed\\712\\download_list.txt"));
         System.out.println("准备下载. size:" + urlQueue.size());
         download(urlQueue, false);
 
@@ -95,7 +95,7 @@ public class BatchDownload {
 
     class DownloadThread extends Thread {
         private final String url;
-        private static final String DOWNLOAD_PATH = "D:\\data\\docShop\\618All\\";
+        private static final String DOWNLOAD_PATH = "D:\\data\\docShop\\712\\";
         private final boolean isRetry;
 
         public DownloadThread(String url, boolean isRetry) {

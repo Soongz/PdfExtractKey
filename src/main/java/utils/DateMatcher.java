@@ -24,27 +24,17 @@ public class DateMatcher {
         String str = "户号:0468773993 户名:李xx 时间:2019-01-20剩余金额不足,已超过警戒点B,请速续费." +
                 "2004年ashfjsahjf iash  发布：20020110 ,.2021年09. 发〔2011〕70号文收悉。经研究，市政";
 
-        String str2 = "户号:0468773993 户名:李xx 时间:0剩余金额不足,已超过警戒点B,请速续费.";
-        File file = new File("D:\\data\\docShop\\618All\\WCE30997F993F37BDBDAB9EAEBA3757A6.pdf");
+        String str2 = "时间:0剩余金额2019-不足,2011-已2012-超过警戒点B,2010-。.";
+        File file = new File("D:\\data\\docShop\\618All\\W9B7A16F6A81B2714F79F80555B350779.pdf");
 
         String content = BatchExtractDate.fileExtractStringCache(file.getPath(), file.getName());
 
-        LinkedHashSet<Integer> linkedHashSet = new LinkedHashSet<>();
-        linkedHashSet.add(3);
-        linkedHashSet.add(7);
-        linkedHashSet.add(1);
-        linkedHashSet.add(5);
+        System.out.println(content);
+        final DateMatcherResult matching = matching(content);
 
-        System.out.println(linkedHashSet.toString());
-        System.out.println(linkedHashSet.toArray());
-        final Object[] objects = linkedHashSet.toArray();
-
-        System.out.println(objects[0].getClass().getName() + ">:" + objects[objects.length-1]);
-
-//        final DateMatcherResult matching = matching(content);
-//        System.out.println("end...");
-//        System.out.println(matching.getType());
-//        System.out.println(matching.getResult());
+        System.out.println("end...");
+        System.out.println(matching.getType());
+        System.out.println(matching.getResult());
     }
 
     public static DateMatcherResult matching(String content) {
@@ -56,6 +46,9 @@ public class DateMatcher {
 
         Matcher matcher = p.matcher(content);
         LinkedHashSet<String> list = new LinkedHashSet<>();
+
+        LinkedList<String> allSet = new LinkedList<>();
+
         if (matcher.find()) {
             final String eTime = matcher.group(2);
             final String verification = dateVerify(eTime);
@@ -81,6 +74,8 @@ public class DateMatcher {
             try {
                 int eYear = Integer.parseInt(eTime);
                 if (eYear >= 2000 && eYear <= 2021) {
+                    allSet.add(String.valueOf(eYear));
+
                     maxYear = Math.max(maxYear, eYear);
                     Integer count = yearMap.get(String.valueOf(eYear));
                     if (count == null) count = 0;
@@ -90,6 +85,9 @@ public class DateMatcher {
                 e.printStackTrace();
             }
         }
+        final Object[] sortedYear = allSet.toArray();
+        if (sortedYear.length == 0) return dateMatcherResult;
+
         Set<Integer> noSet = new HashSet<>();
         int maxTimes = 0;
         String maxTimesYear = null;
@@ -105,13 +103,24 @@ public class DateMatcher {
         }
         if (noSet.size() == 1) {
             if (maxYear != 0) {
-                dateMatcherResult.setType("取最大");
-                list.add(String.valueOf(maxYear));
+                if (sortedYear[0].equals(String.valueOf(maxYear)) || sortedYear[sortedYear.length -1].equals(String.valueOf(maxYear))) {
+                    dateMatcherResult.setType("取最大");
+                    list.add(String.valueOf(maxYear));
+                } else {
+                    dateMatcherResult.setType("最大在区间内");
+                    list.addAll(allSet);
+                }
             }
         } else {
             if (maxTimesYear != null) {
-                dateMatcherResult.setType("次数多");
-                list.add(maxTimesYear);
+                if (sortedYear[0].equals(maxTimesYear) || sortedYear[sortedYear.length -1].equals(maxTimesYear)) {
+                    dateMatcherResult.setType("次数多");
+                    list.add(maxTimesYear);
+                } else {
+                    dateMatcherResult.setType("次数多在区间内");
+                    list.addAll(allSet);
+                }
+
             }
         }
         dateMatcherResult.setResult(list);

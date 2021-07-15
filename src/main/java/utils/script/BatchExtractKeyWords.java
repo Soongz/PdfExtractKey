@@ -30,10 +30,10 @@ public class BatchExtractKeyWords {
     private final StringBuffer sqlScript = new StringBuffer();
     private final static String prefix = "UPDATE tb_document SET key_words = \"";
     private final static String middle = "\" WHERE ess_key = \"";
-    private final static String DOCUMENT_PATH = "D:\\data\\docShop\\622All\\";
-    private final static String RESULT_PATH_PREFIX = "D:\\tmp\\clearAfterUsed\\622\\";
+    private final static String DOCUMENT_PATH = "D:\\data\\docShop\\712\\test\\";
+    private final static String RESULT_PATH_PREFIX = "D:\\tmp\\clearAfterUsed\\712\\";
 
-    private final static Integer TIMEOUT_THRESHOLD = 60 * 60 * 2;
+    private final static Integer TIMEOUT_THRESHOLD = 60  * 8;
     private final LongAdder counter = new LongAdder();
 
     private final ConcurrentLinkedQueue<String> retryList;
@@ -41,8 +41,8 @@ public class BatchExtractKeyWords {
     private final ConcurrentLinkedQueue<String> errorList;
 
     public BatchExtractKeyWords() {
-        this.threadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(50000));
-        this.retryThreadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(50000));
+        this.threadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(100000));
+        this.retryThreadPool = new ThreadPoolExecutor(5, 5, 1000, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<>(100000));
         retryList = new ConcurrentLinkedQueue<>();
         errorList = new ConcurrentLinkedQueue<>();
     }
@@ -51,7 +51,7 @@ public class BatchExtractKeyWords {
         BatchExtractKeyWords batchExtractKeyWords = new BatchExtractKeyWords();
         try {
             System.out.println("YOU GOT ONLY 10 SECONDS TO RELEASE THIS PC, GOOD LUCK...");
-            Thread.sleep(10 * 1000);
+            Thread.sleep(1 * 1000);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -142,6 +142,7 @@ public class BatchExtractKeyWords {
                         final String nkeys = KeywordsExtraction.getNkeys(content, 20);
 
                         sqlScript.append(prefix).append(nkeys).append(middle).append(file.getName()).append("\";\n");
+                        //
                     } catch (Exception e) {
                         e.printStackTrace();
                         if (isRetry) {
@@ -196,7 +197,7 @@ public class BatchExtractKeyWords {
                             partialResult.append(WebOCR.execute(file.getPath())); //科大讯飞OCR
 //                            partialResult.append(AliOCR.execute(file.getPath())); //阿里OCR
                         } catch (Exception e) {
-                            System.out.println("counting error, skip...");
+                            System.out.println("a OCR error, skip and continue to append next page content...");
                         }
                     }
                 }

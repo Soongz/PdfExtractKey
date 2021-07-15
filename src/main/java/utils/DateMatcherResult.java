@@ -35,4 +35,12 @@ public class DateMatcherResult {
     public void setResult(LinkedHashSet<String> result) {
         this.result = result;
     }
+
+    @Override
+    public String toString() {
+        return "" +
+                "type='" + type + '\'' +
+                ", result=" + result +
+                '}';
+    }
 }

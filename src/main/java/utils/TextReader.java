@@ -14,6 +14,8 @@ import java.util.*;
 public class TextReader {
 
     private static final String PREFIX = "http://cdndoc.tjdata.com/";
+    private final static String SQL_PREFIX = "UPDATE tb_document SET year = \"";
+    private final static String SQL_MIDDLE = "\" WHERE ess_key = \"";
 
     public static List<String> read(File file) {
         List<String> result = new ArrayList<>();
@@ -34,12 +36,13 @@ public class TextReader {
 
     public static void main(String[] args) {
 //        getTitlesAndEssKey("D:\\tmp\\clearAfterUsed\\628\\20210628-1607.csv");
-        getTitles("D:\\tmp\\clearAfterUsed\\628\\20210628-1607.csv");
+//        getTitles("D:\\tmp\\clearAfterUsed\\628\\20210628-1607.csv");
+        tmp();
     }
 
 
     public static void tmp() {
-        File file = new File("D:\\tmp\\clearAfterUsed\\622\\622esskey.txt");
+        File file = new File("D:\\tmp\\clearAfterUsed\\705\\sql_use.csv");
         StringBuilder result = new StringBuilder();
         try (FileInputStream inputStream = new FileInputStream(file);
              InputStreamReader streamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
@@ -47,13 +50,28 @@ public class TextReader {
         ) {
             String lineTxt;
             while ((lineTxt = bufferedReader.readLine()) != null) {
-                result.append(PREFIX).append(lineTxt).append("\n");
+                try {
+                    final String[] split = lineTxt.split(",");
+                    String type = split[2];
+                    if (split.length > 4) {
+                        StringBuilder years = new StringBuilder(split[3]);
+                        for (int i = 4; i < split.length; i++) {
+                            years.append(",").append(split[i]);
+                        }
+
+                        String essKey = split[1];
+                        result.append(SQL_PREFIX).append(years).append(SQL_MIDDLE).append(essKey).append("\";\n");
+                    }
+                } catch (Exception e) {
+                    System.err.println("error happend...");
+                    e.printStackTrace();
+                }
             }
         } catch (Exception e) {
             System.out.println("read异常");
             e.printStackTrace();
         }
-        flushStringTodisk(result.toString(), "D:\\tmp\\clearAfterUsed\\622\\622downloadUtls.txt");
+        flushStringTodisk(result.toString(), "D:\\tmp\\clearAfterUsed\\705\\GT1_year.sql");
     }
 
     public static HashMap<String, String> getTitlesAndEssKey(String filePath) {

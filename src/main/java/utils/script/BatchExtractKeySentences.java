@@ -200,7 +200,7 @@ public class BatchExtractKeySentences {
                             partialResult.append(WebOCR.execute(file.getPath())); //科大讯飞OCR
 //                            partialResult.append(AliOCR.execute(file.getPath())); //阿里OCR
                         } catch (Exception e) {
-                            System.out.println("counting error, skip...");
+                            System.out.println("a OCR error, skip and continue to append next page content...");
                         }
                     }
                 }

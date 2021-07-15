@@ -12,7 +12,7 @@ import java.io.*;
 import java.util.*;
 
 /**
- * Description: tess4j
+ * Description: 词频统计
  *
  * @author Soong
  */
@@ -40,7 +40,7 @@ public class KeyStatistics {
                         process(file);
                     } catch (Exception e) {
                         failedList.add(file.getPath());
-                        System.out.println("counting error, skip...");
+                        System.out.println("word frequency statistics failed, skip...");
                     }
                 }
             }
@@ -90,7 +90,7 @@ public class KeyStatistics {
                             partialResult.append(WebOCR.execute(file.getPath())); //科大讯飞OCR
 //                            partialResult.append(AliOCR.execute(file.getPath())); //阿里OCR
                         } catch (Exception e) {
-                            System.out.println("counting error, skip...");
+                            System.out.println("a OCR error, skip and continue to append next page content...");
                         }
                     }
                 }
@@ -137,7 +137,7 @@ public class KeyStatistics {
                             partialResult.append(WebOCR.execute(file.getPath())); //科大讯飞OCR
 //                            partialResult.append(AliOCR.execute(file.getPath())); //阿里OCR
                         } catch (Exception e) {
-                            System.out.println("counting error, skip...");
+                            System.out.println("a OCR error, skip and continue to append next page content...");
                         }
                     }
                 }
